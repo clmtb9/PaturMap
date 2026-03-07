@@ -1292,8 +1292,8 @@ function openInfoSheet(id){
     </div>
 
     <!-- HISTORIQUE STATUTS -->
-    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Historique des statuts</div>
-    ${statusHistHtml}
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px" onclick="toggleStatusHist(this)">🕐 Afficher l'historique des statuts</button>
+    <div id="statusHistWrap-${p.id}" style="display:none">${statusHistHtml}</div>
 
     <!-- BREBIS -->
     <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Troupeau</div>
@@ -1466,13 +1466,7 @@ function setBrebis(id,val){
   const n=Math.max(0,parseInt(val)||0);
   p.brebis=n;
   autoStatus(p);
-  bindPopup(p); saveParcs();
-  // Mettre à jour l'affichage sans recharger toute la fiche
-  const statEl=document.querySelectorAll('#piBody .pi-sv');
-  if(statEl[1]) statEl[1].textContent=n||'—';
-  if(statEl[2]) statEl[2].textContent=formatDensite(n,p.area);
-  const badge=document.querySelector('#piBody .densite-badge');
-  if(badge) badge.textContent=`🌿 ${formatDensite(n,p.area)}`;
+  bindPopup(p); saveParcs(); openInfoSheet(id);
 }
 function stepBrebis(id,delta){
   const p=parcs.find(x=>x.id===id);if(!p)return;
@@ -1545,6 +1539,12 @@ function togglePtsGps(btn){
   const open=wrap.style.display==='none';
   wrap.style.display=open?'block':'none';
   btn.textContent=open?`📍 Masquer les points GPS`:`📍 Afficher les ${wrap.querySelectorAll('.pt-row').length} points GPS`;
+}
+function toggleStatusHist(btn){
+  const wrap=btn.nextElementSibling;
+  const open=wrap.style.display==='none';
+  wrap.style.display=open?'block':'none';
+  btn.textContent=open?`🕐 Masquer l'historique des statuts`:`🕐 Afficher l'historique des statuts`;
 }
 function deleteRotation(id,idx){
   const p=parcs.find(x=>x.id===id);if(!p)return;
