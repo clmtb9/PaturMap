@@ -12,6 +12,8 @@
 <meta name="theme-color" content="#3d2b1f">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -231,6 +233,12 @@ input[type=text]:focus{border-color:var(--grass);}
 .brebis-input{width:80px;padding:8px 10px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;font-size:16px;font-family:'DM Sans',sans-serif;color:var(--earth);background:white;text-align:center;}
 .brebis-input:focus{outline:none;border-color:var(--grass);}
 .densite-badge{background:rgba(74,124,89,.1);color:var(--grass);padding:6px 12px;border-radius:10px;font-size:12px;font-weight:700;flex:1;text-align:center;}
+.densite-badge.alerte{background:rgba(224,85,85,.13);color:var(--danger);}
+
+/* ─── PDF EXPORT BTN ─── */
+#btnExportPdf{position:fixed;bottom:calc(86px + var(--sb));right:16px;z-index:600;width:48px;height:48px;background:var(--blue);color:white;border:none;border-radius:50%;font-size:20px;cursor:pointer;box-shadow:0 4px 16px rgba(26,61,107,.5);display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+#btnExportPdf:active{transform:scale(.88);}
+#btnExportPdf.loading{animation:locPulse .7s infinite;}
 
 /* ─── NOTES ─── */
 .notes-area{width:100%;min-height:80px;padding:10px 12px;border:1.5px solid rgba(61,43,31,.2);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--earth);background:white;resize:none;line-height:1.5;}
@@ -256,12 +264,15 @@ input[type=text]:focus{border-color:var(--grass);}
 
 /* ─── MESURE DISTANCE ─── */
 #measureBar{background:#6d28d9;color:white;}
-.measure-result{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(28px + var(--sb));z-index:600;background:#6d28d9;color:white;padding:12px 22px;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;display:none;white-space:nowrap;box-shadow:0 4px 20px rgba(109,40,217,.5);}
+.measure-result{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + var(--sb));z-index:601;background:#6d28d9;color:white;padding:10px 20px;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;display:none;white-space:nowrap;box-shadow:0 4px 20px rgba(109,40,217,.5);}
 #measureResult.on{display:block;}
-#btnMeasure{position:fixed;top:calc(var(--hh) + 114px);left:10px;z-index:600;background:white;border:none;border-radius:10px;width:44px;height:44px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:9px;font-weight:700;color:#444;font-family:'DM Sans',sans-serif;transition:transform .15s;}
+#btnMeasure{position:fixed;top:calc(var(--hh) + 166px);left:10px;z-index:600;background:white;border:none;border-radius:10px;width:44px;height:44px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:9px;font-weight:700;color:#444;font-family:'DM Sans',sans-serif;transition:transform .15s;}
 #btnMeasure:active{transform:scale(.9);}
 #btnMeasure.active{background:#6d28d9;color:white;}
 #btnMeasure .sat-icon{font-size:18px;line-height:1;}
+#btnSecteurMap{position:fixed;top:calc(var(--hh) + 114px);left:10px;z-index:600;background:white;border:none;border-radius:10px;width:44px;height:44px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:9px;font-weight:700;color:#444;font-family:'DM Sans',sans-serif;transition:transform .15s;}
+#btnSecteurMap:active{transform:scale(.9);}
+#btnSecteurMap .sat-icon{font-size:18px;line-height:1;}
 
 /* ─── DIST GPS ─── */
 .gps-dist{background:rgba(26,119,255,.1);color:#1a77ff;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;margin-bottom:14px;display:none;}
@@ -278,6 +289,16 @@ input[type=text]:focus{border-color:var(--grass);}
   white-space: nowrap !important;
 }
 .zone-tooltip::before{ display:none !important; }
+
+.parc-tooltip{
+  background:rgba(255,255,255,.92) !important;
+  border:none !important;
+  box-shadow:0 2px 8px rgba(0,0,0,.18) !important;
+  border-radius:8px !important;
+  padding:4px 8px !important;
+  pointer-events:none !important;
+}
+.parc-tooltip::before{ display:none !important; }
 
 /* ─── SATELLITE TOGGLE ─── */
 #btnSat{
@@ -416,6 +437,12 @@ input[type=text]:focus{border-color:var(--grass);}
 <!-- MEASURE RESULT -->
 <div id="measureResult" class="measure-result"></div>
 
+<!-- SECTEUR MAP BUTTON -->
+<button id="btnSecteurMap" onclick="openSecteurMapSheet()" title="Secteurs">
+  <span class="sat-icon">🗂️</span>
+  <span>Secteurs</span>
+</button>
+
 <!-- MEASURE BUTTON -->
 <button id="btnMeasure" onclick="toggleMeasure()" title="Mesurer une distance">
   <span class="sat-icon">📏</span>
@@ -437,6 +464,7 @@ input[type=text]:focus{border-color:var(--grass);}
 <!-- FABs -->
 <button id="fab"     onclick="openNewParcSheet()">＋</button>
 <button id="fabList" onclick="openListSheet()">🌿</button>
+<button id="btnExportPdf" onclick="exportPDF()" title="Exporter en PDF">📄</button>
 
 <!-- OFFLINE BADGE -->
 <div id="offlineBadge">📡 Hors ligne</div>
@@ -458,6 +486,19 @@ input[type=text]:focus{border-color:var(--grass);}
 </div>
 
 <div id="overlay" onclick="closeAllSheets()"></div>
+
+<!-- QUIT CONFIRMATION MODAL -->
+<div id="quitModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--cream);border-radius:20px;padding:28px 24px;max-width:320px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.4);text-align:center;">
+    <div style="font-size:36px;margin-bottom:12px">🐑</div>
+    <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--earth);margin-bottom:8px">Quitter PâturMap ?</div>
+    <div style="font-size:13px;color:#888;margin-bottom:24px">Vos données sont sauvegardées.</div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="cancelQuit()" style="flex:1;padding:13px;border:1.5px solid rgba(61,43,31,.2);border-radius:12px;background:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--earth);cursor:pointer;">Rester</button>
+      <button onclick="confirmQuit()" style="flex:1;padding:13px;border:none;border-radius:12px;background:var(--danger);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;">Quitter</button>
+    </div>
+  </div>
+</div>
 
 <!-- SHEET: NOUVEAU PARC -->
 <div class="sheet" id="newParcSheet">
@@ -487,7 +528,10 @@ input[type=text]:focus{border-color:var(--grass);}
 <!-- SHEET: LISTE -->
 <div class="sheet" id="listSheet">
   <div class="s-handle"></div>
-  <div class="s-title" id="listTitle">🌿 Mes parcs</div>
+  <div class="pi-title-row">
+    <button class="pi-back" onclick="closeAllSheets()">‹</button>
+    <div class="pi-name" id="listTitle">🌿 Mes parcs</div>
+  </div>
   <div class="s-body" id="parcsList"></div>
 </div>
 
@@ -502,10 +546,23 @@ input[type=text]:focus{border-color:var(--grass);}
   <div class="s-body" id="piBody"></div>
 </div>
 
-<!-- SHEET: SECTEURS -->
+<!-- SHEET: SECTEURS (carte) -->
+<div class="sheet" id="secteurMapSheet">
+  <div class="s-handle"></div>
+  <div class="pi-title-row">
+    <button class="pi-back" onclick="closeAllSheets()" title="Fermer">‹</button>
+    <div class="pi-name">🗂️ Secteurs</div>
+  </div>
+  <div class="s-body" id="secteurMapBody"></div>
+</div>
+
+<!-- SHEET: SECTEURS (gestion) -->
 <div class="sheet" id="secteurSheet">
   <div class="s-handle"></div>
-  <div class="s-title">🗂️ Secteurs</div>
+  <div class="pi-title-row">
+    <button class="pi-back" onclick="closeAllSheets()" title="Fermer">‹</button>
+    <div class="pi-name">🗂️ Gérer les secteurs</div>
+  </div>
   <div class="s-body" id="secteurBody"></div>
 </div>
 
@@ -521,13 +578,14 @@ let addBetweenMode=false, addBetweenParcId=null;
 let gpsMarker=null, gpsCircle=null, gpsWatch=null;
 let searchTimer=null;
 let measureMode=false, measurePts=[], measureMarkers=[], measureLine=null;
+let densiteSeuilM2 = parseInt(localStorage.getItem('paturmap_seuil_densite')||'0')||0; // m²/brebis min
 
 // ══════════════════════════════════════════════════════
 //  ZONES DE RÉFÉRENCE — définies ici, chargées après la carte
 // ══════════════════════════════════════════════════════
 const REFERENCE_ZONES = [
   {
-    name: 'La ferme de MR GROOT',
+    name: 'La ferme de MR GROUT',
     color: '#7b3f00',
     fillColor: '#c8860a',
     points: [
@@ -744,18 +802,63 @@ document.getElementById('customColor').addEventListener('input',e=>{
 // ══════════════════════════════════════════════════════
 //  SHEETS
 // ══════════════════════════════════════════════════════
-const SHEETS=['newParcSheet','listSheet','infoSheet','secteurSheet'];
+const SHEETS=['newParcSheet','listSheet','infoSheet','secteurSheet','secteurMapSheet'];
 function openSheet(id){
   SHEETS.forEach(s=>document.getElementById(s).classList.remove('open'));
   document.getElementById(id).classList.add('open');
   document.getElementById('overlay').classList.add('on');
+  // Masquer le viseur pendant qu'une sheet est ouverte
+  document.getElementById('crosshair').classList.remove('on');
+  document.getElementById('xhCoords').classList.remove('on');
+  history.pushState({sheet:id},'');
 }
 function closeAllSheets(){
   SHEETS.forEach(s=>document.getElementById(s).classList.remove('open'));
   document.getElementById('overlay').classList.remove('on');
+  // Restaurer le viseur si un mode actif le nécessite
+  if(drawing || measureMode || addBetweenMode) showXhair(true);
 }
 function openNewParcSheet(){if(editingId!==null||addBetweenMode)return;openSheet('newParcSheet');}
 function openListSheet(){if(editingId!==null||addBetweenMode)return;renderList();openSheet('listSheet');}
+
+function showQuitModal(){
+  const m=document.getElementById('quitModal');
+  m.style.display='flex';
+}
+function cancelQuit(){
+  document.getElementById('quitModal').style.display='none';
+}
+function confirmQuit(){
+  document.getElementById('quitModal').style.display='none';
+  history.back();
+}
+
+// État initial dans l'historique pour que le premier "retour" ne quitte pas l'app
+history.replaceState({sheet:null},'');
+
+
+window.addEventListener('popstate', e=>{
+  const openSheet = SHEETS.find(s=>document.getElementById(s).classList.contains('open'));
+  if(openSheet){
+    closeAllSheets();
+    // Repousser l'état de base pour que le prochain retour ne quitte pas l'app
+    history.replaceState({sheet:null},'');
+  } else if(drawing){
+    cancelDrawing();
+    history.replaceState({sheet:null},'');
+  } else if(editingId!==null){
+    finishEdit();
+    history.replaceState({sheet:null},'');
+  } else if(measureMode){
+    cancelMeasure();
+    history.replaceState({sheet:null},'');
+  } else {
+    // Toujours repousser un état d'abord pour bloquer la navigation
+    history.pushState({sheet:null},'');
+    // Puis afficher la modale
+    showQuitModal();
+  }
+});
 
 // ══════════════════════════════════════════════════════
 //  MARKER FACTORY — numbered, draggable option
@@ -825,6 +928,7 @@ function updDrawCount(){
 
 function closePolygon(){
   if(curPts.length<3)return;
+  if(navigator.vibrate) navigator.vibrate(30);
   const name=document.getElementById('parcName').value.trim()||`Parc ${parcId+1}`;
   const color=selColor, id=++parcId, pts=[...curPts];
   cleanDraw();
@@ -839,7 +943,12 @@ function closePolygon(){
   setTimeout(()=>openInfoSheet(id),450);
 }
 
-function cancelDrawing(){cleanDraw();}
+function cancelDrawing(){
+  if(curPts.length>0){
+    if(!confirm(`Annuler le tracé ? (${curPts.length} point${curPts.length>1?'s':''} perdus)`)) return;
+  }
+  cleanDraw();
+}
 
 function cleanDraw(){
   drawing=false;
@@ -909,12 +1018,34 @@ function rebuildPolygon(parc){
 
 function bindPopup(parc){
   parc.polygon.off('click');parc.polygon.unbindPopup();
+  const statIcons={dispo:'✅',occupe:'🐑',repos:'💤'};
+  const statLabels={dispo:'Disponible',occupe:'Occupé',repos:'En repos'};
+  const status=parc.status||'dispo';
+  // N'écraser brebis que si on a un historique de rotations
+  if(parc.rotations&&parc.rotations.length){
+    parc.brebis=calcBrebisFromRotations(parc.rotations);
+  }
+  const brebis=parc.brebis||0;
+  const densite=formatDensite(brebis,parc.area);
   parc.polygon.bindPopup(`
-    <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:${parc.color};margin-bottom:5px">${parc.name}</div>
-    <div style="font-size:12px;color:#666;margin-bottom:6px">🌿 ${formatArea(parc.area)} &nbsp; 📍 ${parc.points.length} points</div>
+    <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:${parc.color};margin-bottom:6px">${parc.name}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:${brebis?'5':'8'}px">
+      <span style="background:#f0ece4;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700;color:#555">${statIcons[status]} ${statLabels[status]}</span>
+      <span style="font-size:12px;color:#888">🌿 ${formatArea(parc.area)}</span>
+    </div>
+    ${brebis?`<div style="font-size:12px;color:#666;margin-bottom:8px">🐑 <b>${brebis}</b> brebis${densite?' · '+densite:''}</div>`:''}
     <div style="font-size:12px;color:${parc.color};font-weight:600;cursor:pointer" onclick="map.closePopup();openInfoSheet(${parc.id})">▶ Voir les détails</div>
   `);
   parc.polygon.on('click',()=>parc.polygon.openPopup());
+  // Tooltip permanent uniquement si alerte densité
+  parc.polygon.unbindTooltip();
+  const m2PerB = brebis && parc.area ? parc.area/brebis : Infinity;
+  const alerteTooltip = densiteSeuilM2>0 && brebis>0 && m2PerB < densiteSeuilM2;
+  if(alerteTooltip){
+    parc.polygon.bindTooltip(`⚠️ ${Math.round(m2PerB)} m²/b`, {
+      permanent:true, direction:'center', className:'parc-tooltip'
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1041,10 +1172,12 @@ function openInfoSheet(id){
   const p=parcs.find(x=>x.id===id);if(!p)return;
   // Ensure extended fields exist
   if(!p.status)    p.status='dispo';
-  if(!p.brebis)    p.brebis=0;
   if(!p.notes)     p.notes='';
   if(!p.rotations) p.rotations=[];
   if(!p.secteurId) p.secteurId=null;
+  // Recalculer depuis les rotations si historique présent, sinon garder la valeur manuelle
+  if(p.rotations.length) p.brebis=calcBrebisFromRotations(p.rotations);
+  else if(p.brebis===undefined) p.brebis=0;
 
   map.closePopup();
   document.getElementById('piDot').style.background=p.color;
@@ -1058,8 +1191,10 @@ function openInfoSheet(id){
     gpsDistHtml=`<div class="gps-dist on">📍 Distance depuis votre position : <b>${formatDist(d)}</b></div>`;
   }
 
-  // Densité
-  const densite = p.brebis>0 && p.area>0 ? (p.brebis/(p.area/10000)).toFixed(1)+' brebis/ha' : '—';
+  // Densité + alerte
+  const densite = formatDensite(p.brebis, p.area);
+  const m2PerB = p.brebis && p.area ? p.area / p.brebis : Infinity;
+  const densiteAlerte = densiteSeuilM2 > 0 && p.brebis > 0 && m2PerB < densiteSeuilM2;
 
   // Secteur actuel
   const sec = secteurs.find(s=>s.id===p.secteurId);
@@ -1075,7 +1210,10 @@ function openInfoSheet(id){
           <div class="rot-dot" style="background:${r.type==='entree'?'#1a6630':'#856404'}"></div>
           <div class="rot-info">
             <div>${r.type==='entree'?'🐑 Entrée':'🚪 Sortie'} — ${r.brebis} brebis</div>
-            <div class="rot-date">${r.date}${r.note?' · '+r.note:''}</div>
+            <div class="rot-date">
+              <input type="date" value="${r.isoDate||''}" style="border:none;background:transparent;font-size:10px;color:#aaa;cursor:pointer;font-family:'DM Sans',sans-serif;" onchange="updateRotDate(${p.id},${i},this.value)">
+              ${r.note?' · '+r.note:''}
+            </div>
           </div>
           <button class="rot-del" onclick="deleteRotation(${p.id},${i})">✕</button>
         </div>`).join('')
@@ -1084,8 +1222,8 @@ function openInfoSheet(id){
   document.getElementById('piBody').innerHTML=`
     <div class="pi-stats">
       <div class="pi-stat"><div class="pi-sv">${formatArea(p.area)}</div><div class="pi-sl">Surface</div></div>
-      <div class="pi-stat"><div class="pi-sv">${p.points.length}</div><div class="pi-sl">Points</div></div>
       <div class="pi-stat"><div class="pi-sv">${p.brebis||'—'}</div><div class="pi-sl">Brebis</div></div>
+      <div class="pi-stat"><div class="pi-sv" style="display:flex;align-items:baseline;gap:0">${formatDensite(p.brebis,p.area,true)}</div><div class="pi-sl">Densité</div></div>
     </div>
     ${gpsDistHtml}
     ${secHtml}
@@ -1098,11 +1236,28 @@ function openInfoSheet(id){
 
     <!-- BREBIS -->
     <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Troupeau</div>
+    ${p.rotations.length===0 ? `
     <div class="brebis-row">
       <button onclick="stepBrebis(${p.id},-1)" style="width:36px;height:36px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;background:white;font-size:18px;cursor:pointer;flex-shrink:0">−</button>
-      <input type="number" class="brebis-input" id="brebisInput-${p.id}" value="${p.brebis||0}" min="0" onchange="setBrebis(${p.id},this.value)">
+      <input type="number" class="brebis-input" id="brebisInput-${p.id}" value="${p.brebis||0}" min="0" inputmode="numeric" pattern="[0-9]*" onblur="setBrebis(${p.id},this.value)">
       <button onclick="stepBrebis(${p.id},1)" style="width:36px;height:36px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;background:white;font-size:18px;cursor:pointer;flex-shrink:0">＋</button>
       <div class="densite-badge">🌿 ${densite}</div>
+    </div>` : `
+    <div class="brebis-row">
+      <div style="background:white;border:1.5px solid rgba(61,43,31,.1);border-radius:10px;padding:8px 14px;font-size:20px;font-weight:700;color:var(--earth);min-width:64px;text-align:center">${p.brebis||0}</div>
+      <div style="font-size:11px;color:#aaa;flex:1;line-height:1.4">Calculé depuis<br>l'historique</div>
+      <div class="densite-badge${densiteAlerte?' alerte':''}">${densiteAlerte?'⚠️':'🌿'} ${densite}${densiteAlerte?` <span style="font-size:10px;display:block;margin-top:1px">Seuil dépassé</span>`:''}</div>
+    </div>`}
+
+    ${densiteAlerte?`<div style="background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.3);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--danger);font-weight:600">⚠️ Densité trop élevée — moins de ${densiteSeuilM2} m²/brebis</div>`:''}
+
+    <!-- ALERTE DENSITÉ (seuil) -->
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Seuil d'alerte densité</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <input type="number" id="seuilInput" value="${densiteSeuilM2||''}" min="0" placeholder="ex: 200" inputmode="numeric"
+        style="flex:1;padding:10px 12px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;font-size:14px;background:white;font-family:'DM Sans',sans-serif"
+        onblur="saveSeuil(this.value)">
+      <span style="font-size:12px;color:#888;white-space:nowrap">m²/brebis</span>
     </div>
 
     <!-- NOTES -->
@@ -1120,21 +1275,22 @@ function openInfoSheet(id){
     <!-- HISTORIQUE ROTATIONS -->
     <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Historique rotations</div>
     <div id="rotList-${p.id}">${rotHtml}</div>
-    <div class="rot-add-row">
-      <select class="rot-add-input" id="rotType-${p.id}" style="flex:0.8">
+    <div class="rot-add-row" style="flex-wrap:wrap;gap:7px">
+      <select class="rot-add-input" id="rotType-${p.id}" style="flex:1;min-width:100px">
         <option value="entree">🐑 Entrée</option>
         <option value="sortie">🚪 Sortie</option>
       </select>
-      <input type="number" class="rot-add-input" id="rotBrebis-${p.id}" placeholder="Nb brebis" min="0" style="flex:0.8">
-      <button class="rot-add-btn" onclick="addRotation(${p.id})">＋ Ajouter</button>
+      <input type="number" class="rot-add-input" id="rotBrebis-${p.id}" placeholder="Nb brebis" min="0" style="flex:1;min-width:80px">
+      <input type="date" class="rot-add-input" id="rotDate-${p.id}" style="flex:1;min-width:120px">
+      <button class="rot-add-btn" style="width:100%" onclick="addRotation(${p.id})">＋ Ajouter un mouvement</button>
     </div>
 
     <!-- ACTIONS -->
-    <div style="display:flex;gap:7px;margin:16px 0 14px;flex-wrap:wrap">
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">Édition</div>
+    <div style="display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="renameParc(${p.id})">✏️ Renommer</button>
       <button class="btn btn-blue btn-sm" style="flex:1" onclick="closeAllSheets();startEdit(${p.id})">🔧 Modifier</button>
-      <button class="btn btn-sm" style="flex:1;background:#2d6a4f;color:white" onclick="closeAllSheets();startAddBetween(${p.id})">➕ Point</button>
-      <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteParc(${p.id})">🗑️</button>
+      <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteParc(${p.id})">🗑️ Supprimer</button>
     </div>
 
     <!-- COULEUR -->
@@ -1150,14 +1306,16 @@ function openInfoSheet(id){
     </div>
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:14px" id="btnToggleColor-${p.id}" onclick="toggleColorPicker(${p.id})">🎨 Changer la couleur</button>
 
-    <!-- POINTS GPS -->
-    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Points GPS</div>
+    <!-- POINTS GPS (réduits par défaut) -->
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px" onclick="togglePtsGps(this)">📍 Afficher les ${p.points.length} points GPS</button>
+    <div id="ptsGpsWrap-${p.id}" style="display:none">
     ${p.points.map((pt,i)=>`
       <div class="pt-row">
         <div class="pt-num" style="background:${p.color}">${i+1}</div>
         <div class="pt-coords">${pt.lat.toFixed(6)}<br>${pt.lng.toFixed(6)}</div>
         <button class="pt-copy" data-lat="${pt.lat}" data-lng="${pt.lng}">📋 Copier</button>
       </div>`).join('')}
+    </div>
   `;
   document.querySelectorAll('#piBody .pt-copy').forEach(btn=>{
     btn.addEventListener('click',()=>copyText(`${btn.dataset.lat}, ${btn.dataset.lng}`,btn));
@@ -1193,7 +1351,8 @@ function fallbackCopy(txt,btn,ok){
 // ══════════════════════════════════════════════════════
 function setStatus(id,status){
   const p=parcs.find(x=>x.id===id);if(!p)return;
-  p.status=status; saveParcs(); openInfoSheet(id);
+  p.status=status; applyStatusStyle(p); bindPopup(p); saveParcs(); openInfoSheet(id);
+  if(navigator.vibrate) navigator.vibrate(15);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1201,11 +1360,20 @@ function setStatus(id,status){
 // ══════════════════════════════════════════════════════
 function setBrebis(id,val){
   const p=parcs.find(x=>x.id===id);if(!p)return;
-  p.brebis=Math.max(0,parseInt(val)||0); saveParcs(); openInfoSheet(id);
+  const n=Math.max(0,parseInt(val)||0);
+  p.brebis=n;
+  bindPopup(p); saveParcs();
+  // Mettre à jour l'affichage sans recharger toute la fiche
+  const statEl=document.querySelectorAll('#piBody .pi-sv');
+  if(statEl[1]) statEl[1].textContent=n||'—';
+  if(statEl[2]) statEl[2].textContent=formatDensite(n,p.area);
+  const badge=document.querySelector('#piBody .densite-badge');
+  if(badge) badge.textContent=`🌿 ${formatDensite(n,p.area)}`;
 }
 function stepBrebis(id,delta){
   const p=parcs.find(x=>x.id===id);if(!p)return;
-  p.brebis=Math.max(0,(p.brebis||0)+delta); saveParcs(); openInfoSheet(id);
+  p.brebis=Math.max(0,(p.brebis||0)+delta);
+  bindPopup(p); saveParcs(); openInfoSheet(id);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1219,23 +1387,65 @@ function setNotes(id,val){
 // ══════════════════════════════════════════════════════
 //  ROTATIONS
 // ══════════════════════════════════════════════════════
+function calcBrebisFromRotations(rotations){
+  if(!rotations||!rotations.length) return 0;
+  // Trier : par date, puis entrées avant sorties le même jour, puis ordre d'insertion
+  const indexed=rotations.map((r,i)=>({...r,_i:i}));
+  indexed.sort((a,b)=>{
+    const da=a.isoDate||'', db=b.isoDate||'';
+    if(da!==db) return da.localeCompare(db);
+    // Même jour : entrées d'abord
+    if(a.type!==b.type) return a.type==='entree'?-1:1;
+    // Même type : ordre d'insertion original (index inversé car unshift)
+    return b._i - a._i;
+  });
+  let count=0;
+  indexed.forEach(r=>{
+    const n=parseInt(r.brebis)||0;
+    if(r.type==='entree') count+=n;
+    else if(r.type==='sortie') count=Math.max(0,count-n);
+  });
+  return count;
+}
+
 function addRotation(id){
   const p=parcs.find(x=>x.id===id);if(!p)return;
   const type=document.getElementById(`rotType-${id}`).value;
   const brebis=parseInt(document.getElementById(`rotBrebis-${id}`).value)||0;
   if(!brebis){alert('Entrez un nombre de brebis.');return;}
   if(!p.rotations) p.rotations=[];
-  const now=new Date();
-  const date=`${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
-  p.rotations.unshift({type,brebis,date});
-  // Auto-update brebis count on entry
-  if(type==='entree') p.brebis=brebis;
-  if(type==='sortie') p.brebis=0;
+  const dateInput=document.getElementById(`rotDate-${id}`).value;
+  const isoDate=dateInput||new Date().toISOString().slice(0,10);
+  const d=new Date(isoDate);
+  const date=`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+  p.rotations.unshift({type,brebis,date,isoDate});
+  p.brebis=calcBrebisFromRotations(p.rotations);
+  bindPopup(p);
   saveParcs(); openInfoSheet(id);
+}
+
+function updateRotDate(id,idx,isoDate){
+  const p=parcs.find(x=>x.id===id);if(!p||!p.rotations[idx])return;
+  p.rotations[idx].isoDate=isoDate;
+  const d=new Date(isoDate);
+  p.rotations[idx].date=`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+  p.brebis=calcBrebisFromRotations(p.rotations);
+  bindPopup(p);
+  saveParcs();
+}
+
+function togglePtsGps(btn){
+  const wrap=btn.nextElementSibling;
+  const open=wrap.style.display==='none';
+  wrap.style.display=open?'block':'none';
+  btn.textContent=open?`📍 Masquer les points GPS`:`📍 Afficher les ${wrap.querySelectorAll('.pt-row').length} points GPS`;
 }
 function deleteRotation(id,idx){
   const p=parcs.find(x=>x.id===id);if(!p)return;
-  p.rotations.splice(idx,1); saveParcs(); openInfoSheet(id);
+  p.rotations.splice(idx,1);
+  p.brebis=calcBrebisFromRotations(p.rotations);
+  bindPopup(p);
+  saveParcs(); openInfoSheet(id);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1245,6 +1455,57 @@ function setSecteur(id,secteurIdVal){
   const p=parcs.find(x=>x.id===id);if(!p)return;
   p.secteurId=secteurIdVal?parseInt(secteurIdVal):null;
   saveParcs();
+}
+
+function openSecteurMapSheet(){
+  const el=document.getElementById('secteurMapBody');
+  // Build list: secteurs + unassigned group
+  const statIcons={dispo:'✅',occupe:'🐑',repos:'💤'};
+  let html='';
+
+  // Secteurs
+  if(secteurs.length){
+    secteurs.forEach(s=>{
+      const sp=parcs.filter(p=>p.secteurId===s.id);
+      const totalArea=sp.reduce((a,p)=>a+p.area,0);
+      html+=`<div class="pcard" style="border-left-color:var(--blue);cursor:pointer" onclick="zoomToSecteur(${s.id})">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="pname">🗂️ ${s.name}</div>
+          <span style="font-size:11px;color:#aaa">${sp.length} parc${sp.length>1?'s':''}</span>
+        </div>
+        <div class="pmeta">${sp.length?'<span class="abadge">'+formatArea(totalArea)+'</span>':'<span style="color:#bbb">Aucun parc assigné</span>'}</div>
+        ${sp.map(p=>`<div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--earth)">
+          <div style="width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
+          ${p.name} <span style="margin-left:auto">${statIcons[p.status||'dispo']}</span>
+        </div>`).join('')}
+      </div>`;
+    });
+  }
+
+  // Parcs sans secteur
+  const unsec=parcs.filter(p=>!p.secteurId);
+  if(unsec.length){
+    html+=`<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px;padding-left:4px">Sans secteur</div>`;
+    unsec.forEach(p=>{
+      html+=`<div class="pcard" style="border-left-color:${p.color}" onclick="closeAllSheets();map.fitBounds(parcs.find(x=>x.id===${p.id}).polygon.getBounds(),{padding:[60,60]});setTimeout(()=>openInfoSheet(${p.id}),300)">
+        <div class="pname">${p.name} <span style="margin-left:4px">${statIcons[p.status||'dispo']}</span></div>
+        <div class="pmeta"><span class="abadge">${formatArea(p.area)}</span>${p.brebis?`<span>🐑 ${p.brebis}</span>`:''}</div>
+      </div>`;
+    });
+  }
+
+  if(!secteurs.length && !parcs.length) html='<div class="empty"><div class="big">🗂️</div>Aucun secteur ni parc créé.</div>';
+  html+=`<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="openSecteurSheet()">⚙️ Gérer les secteurs</button>`;
+  el.innerHTML=html;
+  openSheet('secteurMapSheet');
+}
+
+function zoomToSecteur(id){
+  const sp=parcs.filter(p=>p.secteurId===id);
+  if(!sp.length){alert('Aucun parc dans ce secteur.');return;}
+  const group=L.featureGroup(sp.map(p=>p.polygon));
+  map.fitBounds(group.getBounds(),{padding:[60,60]});
+  closeAllSheets();
 }
 
 function openSecteurSheet(){
@@ -1469,6 +1730,17 @@ function deleteParc(id){
 // ══════════════════════════════════════════════════════
 //  GEOMETRY
 // ══════════════════════════════════════════════════════
+function saveSeuil(val){
+  densiteSeuilM2 = Math.max(0, parseInt(val)||0);
+  localStorage.setItem('paturmap_seuil_densite', densiteSeuilM2);
+  parcs.forEach(p=>bindPopup(p));
+}
+
+function applyStatusStyle(parc){
+  const op = parc.status==='repos' ? .07 : parc.status==='occupe' ? .38 : .22;
+  parc.polygon.setStyle({color:parc.color, fillColor:parc.color, fillOpacity:op});
+}
+
 function calcArea(pts){
   if(pts.length<3)return 0;
   const R=6371000;let a=0;
@@ -1481,6 +1753,15 @@ function calcArea(pts){
   return Math.abs(a/2);
 }
 function formatArea(m2){return m2>=10000?`${(m2/10000).toFixed(2)} ha`:`${Math.round(m2)} m²`;}
+function formatDensite(brebis,area,html=false){
+  if(!brebis||!area) return html?'—':'—';
+  const m2PerB = area / brebis;
+  let val, unit;
+  if(m2PerB >= 10000){ val=(m2PerB/10000).toFixed(2); unit='ha/b'; }
+  else { val=Math.round(m2PerB); unit='m²/b'; }
+  if(html) return `${val}<span style="font-size:11px;font-weight:400;color:#aaa;margin-left:2px">${unit}</span>`;
+  return `${val} ${unit}`;
+}
 
 // ══════════════════════════════════════════════════════
 //  PERSISTANCE — localStorage
@@ -1518,17 +1799,20 @@ function loadParcs(){
       const polygon = L.polygon(pts.map(p=>[p.lat,p.lng]),{
         color:d.color, fillColor:d.color, fillOpacity:.22, weight:2.5
       }).addTo(map);
+      const rotations = d.rotations||[];
+      const brebis = rotations.length ? calcBrebisFromRotations(rotations) : (d.brebis||0);
       const parc = {
         id:d.id, name:d.name, color:d.color, polygon, points:pts, area,
         status:    d.status||'dispo',
-        brebis:    d.brebis||0,
+        brebis,
         notes:     d.notes||'',
-        rotations: d.rotations||[],
+        rotations,
         secteurId: d.secteurId||null,
         ptMarkers:[]
       };
       parcs.push(parc);
       buildMarkers(parc, false);
+      applyStatusStyle(parc);
       bindPopup(parc);
     });
     if(parcs.length){
@@ -1597,11 +1881,6 @@ loadSecteurs();
 loadParcs();
 // Charger les zones de référence (toujours, indépendamment du localStorage)
 loadZones();
-// Toujours zoomer sur les zones de référence au démarrage
-if(REFERENCE_ZONES.length){
-  const allPts = REFERENCE_ZONES.flatMap(z=>z.points.map(p=>[p.lat,p.lng]));
-  map.fitBounds(L.latLngBounds(allPts), {padding:[80,80]});
-}
 
 // ══════════════════════════════════════════════════════
 //  SERVICE WORKER
@@ -1615,7 +1894,328 @@ if('serviceWorker' in navigator){
 }
 
 // ══════════════════════════════════════════════════════
-//  OFFLINE / ONLINE DETECTION
+//  EXPORT PDF
+// ══════════════════════════════════════════════════════
+async function exportPDF(){
+  const btn = document.getElementById('btnExportPdf');
+  if(!parcs.length){ alert('Aucun parc à exporter.'); return; }
+  btn.classList.add('loading'); btn.textContent='⏳';
+  if(navigator.vibrate) navigator.vibrate(15);
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+    const W=210, pageH=297, margin=14, contentW=W-margin*2;
+    const colors = {
+      earth:[61,43,31], hay:[201,168,76], grass:[74,124,89],
+      cream:[245,240,232], bark:[107,76,53], danger:[224,85,85],
+      blue:[26,61,107], light:[230,225,215]
+    };
+
+    // ── HELPERS ──────────────────────────────────────────
+    let y = 0;
+    function checkPage(needed=20){
+      if(y + needed > pageH - margin){ doc.addPage(); y = margin; }
+    }
+    function setFont(size, style='normal', colorArr=colors.earth){
+      doc.setFontSize(size); doc.setFont('helvetica', style);
+      doc.setTextColor(...colorArr);
+    }
+    function fillRect(x,ry,w,h,colorArr){
+      doc.setFillColor(...colorArr); doc.rect(x,ry,w,h,'F');
+    }
+    function hLine(ry, colorArr=colors.light){
+      doc.setDrawColor(...colorArr); doc.setLineWidth(0.3);
+      doc.line(margin, ry, W-margin, ry);
+    }
+
+    // ── PAGE DE GARDE ────────────────────────────────────
+    fillRect(0,0,W,52,colors.earth);
+    setFont(26,'bold',[245,240,232]);
+    doc.text('PâturMap', margin, 24);
+    setFont(11,'normal',colors.hay);
+    doc.text('Rapport de gestion des parcs', margin, 33);
+    setFont(9,'normal',[180,165,145]);
+    const now = new Date();
+    doc.text(`Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`, margin, 42);
+
+    // Stats globales
+    y = 62;
+    const totalSurface = parcs.reduce((s,p)=>s+p.area,0);
+    const totalBrebis  = parcs.reduce((s,p)=>s+(p.brebis||0),0);
+    const parcsDispo   = parcs.filter(p=>p.status==='dispo').length;
+    const parcsOccupe  = parcs.filter(p=>p.status==='occupe').length;
+    const parcsRepos   = parcs.filter(p=>p.status==='repos').length;
+
+    const statBoxes=[
+      {label:'Parcs',       val:parcs.length,               color:colors.blue},
+      {label:'Surface tot.', val:formatArea(totalSurface),   color:colors.grass},
+      {label:'Brebis tot.',  val:totalBrebis||'—',           color:colors.hay},
+      {label:'Disponibles',  val:parcsDispo,                 color:[74,124,89]},
+    ];
+    const bw=(contentW-9)/4;
+    statBoxes.forEach((sb,i)=>{
+      const bx=margin+i*(bw+3);
+      fillRect(bx,y,bw,22,sb.color);
+      setFont(14,'bold',[255,255,255]);
+      doc.text(String(sb.val), bx+bw/2, y+10, {align:'center'});
+      setFont(7,'normal',[220,210,195]);
+      doc.text(sb.label, bx+bw/2, y+18, {align:'center'});
+    });
+    y += 30;
+
+    // Résumé statuts
+    setFont(8,'normal',colors.bark);
+    doc.text(`✅ ${parcsDispo} disponibles  ·  🐑 ${parcsOccupe} occupés  ·  💤 ${parcsRepos} en repos`, margin, y);
+    y += 10;
+    hLine(y); y += 8;
+
+    // ── PARCS (une section par parc) ─────────────────────
+    for(let pi=0; pi<parcs.length; pi++){
+      const p = parcs[pi];
+      checkPage(40);
+
+      // En-tête parc
+      const hexToRgb = h=>{const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return[r,g,b];};
+      const pc = hexToRgb(p.color||'#4a7c59');
+      fillRect(margin, y, contentW, 10, pc);
+      setFont(11,'bold',[255,255,255]);
+      doc.text(`${pi+1}. ${p.name}`, margin+4, y+7);
+      // Statut badge
+      const statLabel = {dispo:'Disponible',occupe:'Occupé',repos:'En repos'}[p.status||'dispo'];
+      setFont(7,'normal',[220,210,200]);
+      doc.text(statLabel, W-margin-4, y+7, {align:'right'});
+      y += 14;
+
+      // Infos en colonnes
+      const sec = secteurs.find(s=>s.id===p.secteurId);
+      const m2b = p.brebis && p.area ? Math.round(p.area/p.brebis) : null;
+      const infoItems=[
+        ['Surface', formatArea(p.area)],
+        ['Brebis',  p.brebis||'—'],
+        ['Densité', m2b ? `${m2b} m²/b` : '—'],
+        ['Secteur', sec ? sec.name : '—'],
+      ];
+      const cw2 = contentW/4;
+      infoItems.forEach((item,i)=>{
+        const cx = margin + i*cw2;
+        fillRect(cx, y, cw2-1, 16, colors.cream);
+        setFont(11,'bold',colors.earth);
+        doc.text(String(item[1]), cx+cw2/2, y+8, {align:'center'});
+        setFont(7,'normal',colors.bark);
+        doc.text(item[0], cx+cw2/2, y+13, {align:'center'});
+      });
+      y += 20;
+
+      // Alerte densité
+      if(densiteSeuilM2>0 && p.brebis>0 && m2b && m2b < densiteSeuilM2){
+        checkPage(8);
+        fillRect(margin, y, contentW, 7, [255,235,235]);
+        setFont(8,'bold',colors.danger);
+        doc.text(`⚠ Alerte densité : ${m2b} m²/brebis < seuil ${densiteSeuilM2} m²/brebis`, margin+3, y+5);
+        y += 10;
+      }
+
+      // Notes
+      if(p.notes && p.notes.trim()){
+        checkPage(12);
+        setFont(8,'bold',colors.bark); doc.text('Notes', margin, y+4); y+=6;
+        setFont(8,'normal',colors.earth);
+        const lines = doc.splitTextToSize(p.notes.trim(), contentW);
+        lines.forEach(l=>{ checkPage(5); doc.text(l, margin, y); y+=5; });
+        y+=3;
+      }
+
+      // Graphique rotations (si existe)
+      if(p.rotations && p.rotations.length > 0){
+        checkPage(20);
+        setFont(8,'bold',colors.bark); doc.text('Historique rotations', margin, y+4); y+=8;
+
+        // ── Tableau récap entrées/sorties ──────────────────
+        const sorted=[...p.rotations].sort((a,b)=>(a.isoDate||'').localeCompare(b.isoDate||''));
+        const colW=[28,22,22,22,22];
+        const colX=[margin, margin+28, margin+50, margin+72, margin+94];
+        const rowH=6;
+
+        // En-tête tableau
+        fillRect(margin, y, contentW, rowH+1, colors.earth);
+        const headers=['Date','Type','Brebis','Cumul','m²/b'];
+        setFont(7,'bold',[245,240,232]);
+        headers.forEach((h,i)=>doc.text(h, colX[i]+colW[i]/2, y+5, {align:'center'}));
+        y += rowH+1;
+
+        // Lignes
+        let cumul=0;
+        sorted.forEach((r,i)=>{
+          checkPage(rowH+2);
+          const n=parseInt(r.brebis)||0;
+          if(r.type==='entree') cumul+=n; else cumul=Math.max(0,cumul-n);
+          const m2b = cumul>0&&p.area ? Math.round(p.area/cumul) : '—';
+          const isEntree = r.type==='entree';
+          const bg = i%2===0 ? colors.cream : [255,255,255];
+          fillRect(margin, y, contentW, rowH, bg);
+          // Indicateur couleur type
+          fillRect(margin, y, 3, rowH, isEntree ? [74,124,89] : [224,130,50]);
+          setFont(7,'normal',colors.earth);
+          const dateStr = r.isoDate ? new Date(r.isoDate+'T12:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+          doc.text(dateStr, colX[0]+colW[0]/2, y+4.5, {align:'center'});
+          setFont(7,'bold', isEntree ? colors.grass : [180,90,20]);
+          doc.text(isEntree?'Entrée':'Sortie', colX[1]+colW[1]/2, y+4.5, {align:'center'});
+          setFont(7,'normal',colors.earth);
+          doc.text(String(n), colX[2]+colW[2]/2, y+4.5, {align:'center'});
+          setFont(7,'bold',colors.earth);
+          doc.text(String(cumul), colX[3]+colW[3]/2, y+4.5, {align:'center'});
+          setFont(7,'normal',[120,110,100]);
+          doc.text(String(m2b), colX[4]+colW[4]/2, y+4.5, {align:'center'});
+          // Ligne séparatrice légère
+          doc.setDrawColor(...colors.light); doc.setLineWidth(0.2);
+          doc.line(margin, y+rowH, W-margin, y+rowH);
+          y += rowH;
+        });
+        // Total final
+        fillRect(margin, y, contentW, rowH+1, colors.grass);
+        setFont(7,'bold',[255,255,255]);
+        doc.text('TOTAL FINAL', colX[0]+colW[0]/2, y+5, {align:'center'});
+        doc.text('', colX[1]+colW[1]/2, y+5, {align:'center'});
+        doc.text('', colX[2]+colW[2]/2, y+5, {align:'center'});
+        doc.text(String(cumul)+' brebis', colX[3]+colW[3]/2+11, y+5, {align:'center'});
+        y += rowH+5;
+
+        // ── Graphique en escalier ──────────────────────────
+        checkPage(60);
+        setFont(8,'bold',colors.bark); doc.text('Évolution du troupeau', margin, y+4); y+=7;
+
+        const chartCanvas = document.createElement('canvas');
+        chartCanvas.width=800; chartCanvas.height=260;
+        chartCanvas.style.cssText='position:absolute;left:-9999px;top:-9999px';
+        document.body.appendChild(chartCanvas);
+        const ctx = chartCanvas.getContext('2d');
+
+        // Données : un point avant et après chaque mouvement pour un vrai escalier
+        const chartLabels=[], chartData=[];
+        let cnt=0;
+        if(sorted.length){
+          // Point initial à zéro
+          chartLabels.push(sorted[0].isoDate||'');
+          chartData.push(0);
+        }
+        sorted.forEach(r=>{
+          const n=parseInt(r.brebis)||0;
+          // Point juste avant (même date, valeur avant)
+          chartLabels.push(r.isoDate||'');
+          chartData.push(cnt);
+          // Point après le mouvement
+          if(r.type==='entree') cnt+=n; else cnt=Math.max(0,cnt-n);
+          chartLabels.push(r.isoDate||'');
+          chartData.push(cnt);
+        });
+
+        // Formater les labels date pour l'affichage
+        const fmtLabel = iso => {
+          if(!iso) return '';
+          try { return new Date(iso+'T12:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); }
+          catch { return iso; }
+        };
+        const displayLabels = chartLabels.map(fmtLabel);
+        // Dédupliquer les labels consécutifs identiques pour lisibilité
+        const cleanLabels = displayLabels.map((l,i)=> i>0 && displayLabels[i-1]===l ? '' : l);
+
+        // Couleur de fond dégradée
+        const gradient = ctx.createLinearGradient(0,0,0,260);
+        gradient.addColorStop(0,'rgba(74,124,89,0.35)');
+        gradient.addColorStop(1,'rgba(74,124,89,0.02)');
+
+        const chart = new Chart(ctx,{
+          type:'line',
+          data:{
+            labels: cleanLabels,
+            datasets:[{
+              label:'Brebis présentes',
+              data: chartData,
+              borderColor:'#4a7c59',
+              backgroundColor: gradient,
+              borderWidth:2.5,
+              pointRadius: chartData.map((_,i)=>{
+                // Afficher un point uniquement aux vraies transitions
+                return i%2===1 ? 4 : 0;
+              }),
+              pointBackgroundColor:'#4a7c59',
+              pointBorderColor:'white',
+              pointBorderWidth:1.5,
+              fill:true,
+              tension:0,
+            }]
+          },
+          options:{
+            responsive:false,
+            animation:false,
+            plugins:{
+              legend:{display:false},
+              tooltip:{enabled:false},
+            },
+            scales:{
+              x:{
+                ticks:{font:{size:10},color:'#6b4c35',maxRotation:30,autoSkip:true,maxTicksLimit:12},
+                grid:{color:'rgba(0,0,0,0.05)'},
+                border:{color:'rgba(0,0,0,0.1)'}
+              },
+              y:{
+                beginAtZero:true,
+                ticks:{font:{size:10},color:'#6b4c35',stepSize:Math.ceil(Math.max(...chartData)/5)||1},
+                grid:{color:'rgba(0,0,0,0.07)'},
+                border:{color:'rgba(0,0,0,0.1)'},
+                title:{display:true,text:'Brebis',font:{size:10},color:'#6b4c35'}
+              }
+            },
+            layout:{padding:{top:10,right:10,bottom:5,left:5}}
+          }
+        });
+
+        await new Promise(r=>setTimeout(r,120));
+        const imgData = chartCanvas.toDataURL('image/png',1.0);
+        chart.destroy();
+        document.body.removeChild(chartCanvas);
+
+        checkPage(52);
+        doc.addImage(imgData,'PNG',margin,y,contentW,50);
+        y+=54;
+      } else {
+        checkPage(6);
+        setFont(8,'normal',[170,160,145]);
+        doc.text('Aucun mouvement enregistré', margin, y); y+=8;
+      }
+
+      // Points GPS (condensé)
+      checkPage(8);
+      setFont(7,'normal',[150,140,130]);
+      doc.text(`${p.points.length} points GPS · ${p.points.map(pt=>`${pt.lat.toFixed(5)},${pt.lng.toFixed(5)}`).join(' | ')}`, margin, y, {maxWidth:contentW});
+      y+=8;
+
+      // Séparateur
+      if(pi < parcs.length-1){ checkPage(6); hLine(y); y+=8; }
+    }
+
+    // ── PIED DE PAGE sur chaque page ────────────────────
+    const totalPages = doc.getNumberOfPages();
+    for(let pg=1;pg<=totalPages;pg++){
+      doc.setPage(pg);
+      fillRect(0, pageH-10, W, 10, colors.earth);
+      setFont(7,'normal',[160,150,140]);
+      doc.text('PâturMap', margin, pageH-4);
+      doc.text(`${pg} / ${totalPages}`, W-margin, pageH-4, {align:'right'});
+    }
+
+    doc.save(`paturmap_${now.toISOString().slice(0,10)}.pdf`);
+    if(navigator.vibrate) navigator.vibrate([30,30,30]);
+
+  } catch(err){
+    console.error('PDF error', err);
+    alert('Erreur lors de la génération du PDF : '+err.message);
+  } finally {
+    btn.classList.remove('loading'); btn.textContent='📄';
+  }
+}
+
 // ══════════════════════════════════════════════════════
 function updateOnlineStatus(){
   document.getElementById('offlineBadge').classList.toggle('on', !navigator.onLine);
