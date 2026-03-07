@@ -1445,7 +1445,16 @@ function confirmRepos(){
   const isoDate=document.getElementById('reposDateInput').value||new Date().toISOString().slice(0,10);
   m.style.display='none';
   const p=parcs.find(x=>x.id===id);
-  if(p) p.brebis=0;
+  if(p){
+    const currentBrebis=p.brebis??calcBrebisFromRotations(p.rotations||[]);
+    if(currentBrebis>0){
+      if(!p.rotations)p.rotations=[];
+      const d=new Date(isoDate);
+      const date=`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+      p.rotations.unshift({type:'sortie',brebis:currentBrebis,date,isoDate});
+    }
+    p.brebis=0;
+  }
   _applyStatus(id,'repos',isoDate);
 }
 function cancelRepos(){
