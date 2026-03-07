@@ -1014,7 +1014,7 @@ function buildMarkers(parc,editable){
     const m=makeMarker(pt,i+1,parc.color,editable);
     m.addTo(map);
     if(editable){
-      m.bindTooltip(parc.name,{permanent:false,direction:'top',className:'parc-tooltip',offset:[0,-14]});
+      m.bindTooltip(parc.name,{permanent:true,direction:'top',className:'parc-tooltip',offset:[0,-14]});
       m.on('dragend',e=>{
         parc.points[i]=e.target.getLatLng();
         rebuildPolygon(parc);updEditCount(parc);
