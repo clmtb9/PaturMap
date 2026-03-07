@@ -1888,8 +1888,31 @@ loadZones();
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('./sw.js')
-      .then(reg=>{ console.log('SW registered, scope:', reg.scope); })
+      .then(reg=>{
+        console.log('SW registered, scope:', reg.scope);
+
+        // Check for updates every 60 seconds
+        setInterval(() => {
+          reg.update();
+        }, 60000);
+
+        // Listen for new service worker installation (informational)
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated') {
+              console.log('New version detected, waiting for controller change...');
+            }
+          });
+        });
+      })
       .catch(err=>{ console.warn('SW registration failed:', err); });
+
+    // Also listen for controller change (when skipWaiting() is used)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      console.log('Controller changed, reloading...');
+      window.location.reload();
+    });
   });
 }
 
