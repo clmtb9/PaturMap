@@ -359,6 +359,24 @@ input[type=text]:focus{border-color:var(--grass);}
   z-index:2000;opacity:0;transition:opacity .3s;pointer-events:none;
   box-shadow:0 2px 10px rgba(74,124,89,.5);
 }
+
+/* ─── UPDATE BANNER ─── */
+#updateBanner{
+  position:fixed;bottom:calc(90px + var(--sb));left:12px;right:12px;
+  background:var(--blue);color:white;
+  border-radius:16px;padding:14px 16px;
+  display:none;align-items:center;gap:12px;
+  box-shadow:0 4px 24px rgba(0,0,0,.4);z-index:2100;
+  border:1px solid rgba(74,124,89,.4);
+}
+#updateBanner.on{display:flex;}
+.ub-icon{font-size:24px;flex-shrink:0;}
+.ub-text{flex:1;}
+.ub-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:#a8d5f0;}
+.ub-sub{font-size:11px;color:rgba(255,255,255,.7);margin-top:2px;line-height:1.4;}
+.ub-btns{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+.ub-reload{background:var(--hay);color:var(--earth);border:none;border-radius:9px;padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.ub-dismiss{background:transparent;color:rgba(255,255,255,.5);border:none;font-size:11px;cursor:pointer;text-align:center;}
 </style>
 </head>
 <body>
@@ -482,6 +500,33 @@ input[type=text]:focus{border-color:var(--grass);}
   <div class="ib-btns">
     <button class="ib-install" id="btnInstall">Installer</button>
     <button class="ib-dismiss" id="btnDismiss">Plus tard</button>
+  </div>
+</div>
+
+<!-- UPDATE BANNER (shown when a new version is detected) -->
+<div id="updateBanner">
+  <div class="ub-icon">🔄</div>
+  <div class="ub-text">
+    <div class="ub-title">Mise à jour disponible</div>
+    <div class="ub-sub">Une nouvelle version de PâturMap est prête.</div>
+  </div>
+  <div class="ub-btns">
+    <button class="ub-reload" id="btnUpdate">Recharger</button>
+    <button class="ub-dismiss" id="btnDismissUpdate">Plus tard</button>
+  </div>
+</div>
+
+<!-- REPOS DATE MODAL -->
+<div id="reposModal" style="display:none;position:fixed;inset:0;z-index:4000;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--cream);border-radius:20px;padding:28px 24px;max-width:300px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.4);text-align:center;">
+    <div style="font-size:32px;margin-bottom:10px">💤</div>
+    <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--earth);margin-bottom:6px">Mise en repos</div>
+    <div style="font-size:12px;color:#888;margin-bottom:16px">Choisissez la date de mise en repos :</div>
+    <input type="date" id="reposDateInput" style="width:100%;padding:10px 12px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;background:white;margin-bottom:20px">
+    <div style="display:flex;gap:10px;">
+      <button onclick="cancelRepos()" style="flex:1;padding:13px;border:1.5px solid rgba(61,43,31,.2);border-radius:12px;background:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--earth);cursor:pointer;">Annuler</button>
+      <button onclick="confirmRepos()" style="flex:1;padding:13px;border:none;border-radius:12px;background:var(--grass);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;">Confirmer</button>
+    </div>
   </div>
 </div>
 
@@ -969,6 +1014,7 @@ function buildMarkers(parc,editable){
     const m=makeMarker(pt,i+1,parc.color,editable);
     m.addTo(map);
     if(editable){
+      m.bindTooltip(parc.name,{permanent:false,direction:'top',className:'parc-tooltip',offset:[0,-14]});
       m.on('dragend',e=>{
         parc.points[i]=e.target.getLatLng();
         rebuildPolygon(parc);updEditCount(parc);
@@ -1203,6 +1249,17 @@ function openInfoSheet(id){
   // Statut labels
   const statuts=[{k:'dispo',e:'✅',l:'Disponible'},{k:'occupe',e:'🐑',l:'Occupé'},{k:'repos',e:'💤',l:'En repos'}];
 
+  // Historique des statuts
+  const statusHistHtml = p.statusHistory && p.statusHistory.length
+    ? `<div style="margin-bottom:14px">${p.statusHistory.slice(0,5).map(h=>{
+        const s=statuts.find(x=>x.k===h.status)||{e:'',l:h.status};
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(61,43,31,.07)">
+          <span class="status-badge ${h.status}">${s.e} ${s.l}</span>
+          <span style="font-size:11px;color:#aaa;margin-left:auto">${h.date||h.isoDate||''}</span>
+        </div>`;
+      }).join('')}</div>`
+    : '<div style="font-size:12px;color:#aaa;padding:6px 0;margin-bottom:14px">Aucun historique</div>';
+
   // Rotations
   const rotHtml = p.rotations.length
     ? p.rotations.map((r,i)=>`
@@ -1233,6 +1290,10 @@ function openInfoSheet(id){
     <div class="status-row">
       ${statuts.map(s=>`<button class="status-btn sb-${s.k}${p.status===s.k?' active':''}" onclick="setStatus(${p.id},'${s.k}')">${s.e} ${s.l}</button>`).join('')}
     </div>
+
+    <!-- HISTORIQUE STATUTS -->
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Historique des statuts</div>
+    ${statusHistHtml}
 
     <!-- BREBIS -->
     <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Troupeau</div>
@@ -1349,10 +1410,52 @@ function fallbackCopy(txt,btn,ok){
 // ══════════════════════════════════════════════════════
 //  STATUT
 // ══════════════════════════════════════════════════════
+// Applique un changement de statut avec enregistrement dans l'historique
+function _applyStatus(id,status,isoDate){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  if(!p.statusHistory)p.statusHistory=[];
+  if(p.status!==status){
+    const d=new Date(isoDate+'T12:00');
+    p.statusHistory.unshift({status,isoDate,date:d.toLocaleDateString('fr-FR')});
+  }
+  p.status=status; applyStatusStyle(p); bindPopup(p); saveParcs(); openInfoSheet(id);
+  if(navigator.vibrate)navigator.vibrate(15);
+}
+
 function setStatus(id,status){
   const p=parcs.find(x=>x.id===id);if(!p)return;
-  p.status=status; applyStatusStyle(p); bindPopup(p); saveParcs(); openInfoSheet(id);
-  if(navigator.vibrate) navigator.vibrate(15);
+  if(status==='repos'){showReposDatePicker(id);return;}
+  _applyStatus(id,status,new Date().toISOString().slice(0,10));
+}
+
+function showReposDatePicker(id){
+  const m=document.getElementById('reposModal');
+  m._parcId=id;
+  document.getElementById('reposDateInput').value=new Date().toISOString().slice(0,10);
+  m.style.display='flex';
+}
+function confirmRepos(){
+  const m=document.getElementById('reposModal');
+  const id=m._parcId;
+  const isoDate=document.getElementById('reposDateInput').value||new Date().toISOString().slice(0,10);
+  m.style.display='none';
+  _applyStatus(id,'repos',isoDate);
+}
+function cancelRepos(){
+  document.getElementById('reposModal').style.display='none';
+}
+
+// Met à jour le statut automatiquement selon le nombre de brebis
+function autoStatus(p){
+  if(p.status==='repos')return;
+  const newStatus=(p.brebis>0)?'occupe':'dispo';
+  if(p.status===newStatus)return;
+  if(!p.statusHistory)p.statusHistory=[];
+  const isoDate=new Date().toISOString().slice(0,10);
+  const d=new Date(isoDate+'T12:00');
+  p.statusHistory.unshift({status:newStatus,isoDate,date:d.toLocaleDateString('fr-FR')});
+  p.status=newStatus;
+  applyStatusStyle(p);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1362,6 +1465,7 @@ function setBrebis(id,val){
   const p=parcs.find(x=>x.id===id);if(!p)return;
   const n=Math.max(0,parseInt(val)||0);
   p.brebis=n;
+  autoStatus(p);
   bindPopup(p); saveParcs();
   // Mettre à jour l'affichage sans recharger toute la fiche
   const statEl=document.querySelectorAll('#piBody .pi-sv');
@@ -1373,6 +1477,7 @@ function setBrebis(id,val){
 function stepBrebis(id,delta){
   const p=parcs.find(x=>x.id===id);if(!p)return;
   p.brebis=Math.max(0,(p.brebis||0)+delta);
+  autoStatus(p);
   bindPopup(p); saveParcs(); openInfoSheet(id);
 }
 
@@ -1420,6 +1525,7 @@ function addRotation(id){
   const date=`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
   p.rotations.unshift({type,brebis,date,isoDate});
   p.brebis=calcBrebisFromRotations(p.rotations);
+  autoStatus(p);
   bindPopup(p);
   saveParcs(); openInfoSheet(id);
 }
@@ -1444,6 +1550,7 @@ function deleteRotation(id,idx){
   const p=parcs.find(x=>x.id===id);if(!p)return;
   p.rotations.splice(idx,1);
   p.brebis=calcBrebisFromRotations(p.rotations);
+  autoStatus(p);
   bindPopup(p);
   saveParcs(); openInfoSheet(id);
 }
@@ -1779,6 +1886,7 @@ function saveParcs(){
       brebis:    p.brebis||0,
       notes:     p.notes||'',
       rotations: p.rotations||[],
+      statusHistory: p.statusHistory||[],
       secteurId: p.secteurId||null,
       points:    p.points.map(pt=>({lat:pt.lat, lng:pt.lng}))
     }));
@@ -1807,6 +1915,7 @@ function loadParcs(){
         brebis,
         notes:     d.notes||'',
         rotations,
+        statusHistory: d.statusHistory||[],
         secteurId: d.secteurId||null,
         ptMarkers:[]
       };
@@ -1900,21 +2009,29 @@ if('serviceWorker' in navigator){
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'activated') {
-              console.log('New version detected, waiting for controller change...');
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('New version installed, showing update banner...');
             }
           });
         });
       })
       .catch(err=>{ console.warn('SW registration failed:', err); });
 
-    // Also listen for controller change (when skipWaiting() is used)
+    // Show update banner when new SW takes control (instead of auto-reloading)
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('Controller changed, reloading...');
-      window.location.reload();
+      console.log('Controller changed — showing update banner');
+      document.getElementById('updateBanner').classList.add('on');
     });
   });
 }
+
+document.getElementById('btnUpdate').addEventListener('click', ()=>{
+  document.getElementById('updateBanner').classList.remove('on');
+  window.location.reload();
+});
+document.getElementById('btnDismissUpdate').addEventListener('click', ()=>{
+  document.getElementById('updateBanner').classList.remove('on');
+});
 
 // ══════════════════════════════════════════════════════
 //  EXPORT PDF
@@ -1952,23 +2069,41 @@ async function exportPDF(){
       doc.line(margin, ry, W-margin, ry);
     }
 
-    // ── PAGE DE GARDE ────────────────────────────────────
-    fillRect(0,0,W,52,colors.earth);
-    setFont(26,'bold',[245,240,232]);
-    doc.text('PâturMap', margin, 24);
-    setFont(11,'normal',colors.hay);
-    doc.text('Rapport de gestion des parcs', margin, 33);
-    setFont(9,'normal',[180,165,145]);
+    // Stats globales (pré-calculées pour l'en-tête)
     const now = new Date();
-    doc.text(`Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`, margin, 42);
-
-    // Stats globales
-    y = 62;
     const totalSurface = parcs.reduce((s,p)=>s+p.area,0);
     const totalBrebis  = parcs.reduce((s,p)=>s+(p.brebis||0),0);
     const parcsDispo   = parcs.filter(p=>p.status==='dispo').length;
     const parcsOccupe  = parcs.filter(p=>p.status==='occupe').length;
     const parcsRepos   = parcs.filter(p=>p.status==='repos').length;
+
+    // ── PAGE DE GARDE ────────────────────────────────────
+    fillRect(0,0,W,60,colors.earth);
+    fillRect(0,55,W,5,colors.hay);
+    // Bloc décoratif droite
+    fillRect(W-60,0,60,55,colors.bark);
+    setFont(26,'bold',[245,240,232]);
+    doc.text('PâturMap', margin, 24);
+    setFont(11,'normal',colors.hay);
+    doc.text('Rapport de gestion des parcs', margin, 34);
+    setFont(9,'normal',[180,165,145]);
+    doc.text(`Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`, margin, 44);
+    // Résumé dans le bloc droit
+    setFont(18,'bold',[245,240,232]);
+    doc.text(String(parcs.length), W-30, 19, {align:'center'});
+    setFont(7,'normal',colors.hay);
+    doc.text(`parc${parcs.length>1?'s':''}`, W-30, 26, {align:'center'});
+    setFont(10,'bold',[245,240,232]);
+    doc.text(formatArea(totalSurface), W-30, 36, {align:'center'});
+    setFont(7,'normal',colors.hay);
+    doc.text('surface', W-30, 42, {align:'center'});
+    setFont(9,'bold',[245,240,232]);
+    doc.text(String(totalBrebis||0), W-30, 50, {align:'center'});
+    setFont(7,'normal',colors.hay);
+    doc.text('brebis', W-30, 56, {align:'center'});
+
+    // Stats globales section
+    y = 70;
 
     const statBoxes=[
       {label:'Parcs',       val:parcs.length,               color:colors.blue},
@@ -1989,7 +2124,7 @@ async function exportPDF(){
 
     // Résumé statuts
     setFont(8,'normal',colors.bark);
-    doc.text(`✅ ${parcsDispo} disponibles  ·  🐑 ${parcsOccupe} occupés  ·  💤 ${parcsRepos} en repos`, margin, y);
+    doc.text(`Disponibles: ${parcsDispo}  |  Occupés: ${parcsOccupe}  |  En repos: ${parcsRepos}`, margin, y);
     y += 10;
     hLine(y); y += 8;
 
@@ -2035,18 +2170,32 @@ async function exportPDF(){
         checkPage(8);
         fillRect(margin, y, contentW, 7, [255,235,235]);
         setFont(8,'bold',colors.danger);
-        doc.text(`⚠ Alerte densité : ${m2b} m²/brebis < seuil ${densiteSeuilM2} m²/brebis`, margin+3, y+5);
+        doc.text(`! Alerte densité : ${m2b} m²/brebis < seuil ${densiteSeuilM2} m²/brebis`, margin+3, y+5);
         y += 10;
       }
 
       // Notes
       if(p.notes && p.notes.trim()){
-        checkPage(12);
-        setFont(8,'bold',colors.bark); doc.text('Notes', margin, y+4); y+=6;
+        const noteLines = doc.splitTextToSize(p.notes.trim(), contentW-12);
+        const noteH = noteLines.length * 5.5 + 8;
+        checkPage(noteH + 10);
+        fillRect(margin, y, contentW, 7, colors.bark);
+        setFont(8,'bold',[245,240,232]); doc.text('Notes', margin+4, y+5); y+=7;
+        fillRect(margin, y, contentW, noteH, [252,248,240]);
+        fillRect(margin, y, 3, noteH, colors.hay);
         setFont(8,'normal',colors.earth);
-        const lines = doc.splitTextToSize(p.notes.trim(), contentW);
-        lines.forEach(l=>{ checkPage(5); doc.text(l, margin, y); y+=5; });
-        y+=3;
+        noteLines.forEach((l,li)=>{ doc.text(l, margin+8, y+5+li*5.5); });
+        y+=noteH+4;
+      }
+
+      // Historique statuts
+      if(p.statusHistory && p.statusHistory.length){
+        checkPage(8);
+        const statLabPdf={dispo:'Disponible',occupe:'Occupé',repos:'En repos'};
+        const histStr=p.statusHistory.slice(0,4).map(h=>`${statLabPdf[h.status]||h.status} (${h.date||h.isoDate||'?'})`).join('  >  ');
+        setFont(7,'italic',[150,140,130]);
+        doc.text(`Historique statuts : ${histStr}`, margin, y, {maxWidth:contentW});
+        y+=6;
       }
 
       // Graphique rotations (si existe)
@@ -2109,7 +2258,7 @@ async function exportPDF(){
         setFont(8,'bold',colors.bark); doc.text('Évolution du troupeau', margin, y+4); y+=7;
 
         const chartCanvas = document.createElement('canvas');
-        chartCanvas.width=800; chartCanvas.height=260;
+        chartCanvas.width=800; chartCanvas.height=300;
         chartCanvas.style.cssText='position:absolute;left:-9999px;top:-9999px';
         document.body.appendChild(chartCanvas);
         const ctx = chartCanvas.getContext('2d');
@@ -2144,7 +2293,7 @@ async function exportPDF(){
         const cleanLabels = displayLabels.map((l,i)=> i>0 && displayLabels[i-1]===l ? '' : l);
 
         // Couleur de fond dégradée
-        const gradient = ctx.createLinearGradient(0,0,0,260);
+        const gradient = ctx.createLinearGradient(0,0,0,300);
         gradient.addColorStop(0,'rgba(74,124,89,0.35)');
         gradient.addColorStop(1,'rgba(74,124,89,0.02)');
 
@@ -2159,8 +2308,8 @@ async function exportPDF(){
               backgroundColor: gradient,
               borderWidth:2.5,
               pointRadius: chartData.map((_,i)=>{
-                // Afficher un point uniquement aux vraies transitions
-                return i%2===1 ? 4 : 0;
+                // Afficher un point aux transitions "après mouvement" (indices pairs > 0)
+                return (i%2===0 && i>0) ? 5 : 0;
               }),
               pointBackgroundColor:'#4a7c59',
               pointBorderColor:'white',
@@ -2178,7 +2327,7 @@ async function exportPDF(){
             },
             scales:{
               x:{
-                ticks:{font:{size:10},color:'#6b4c35',maxRotation:30,autoSkip:true,maxTicksLimit:12},
+                ticks:{font:{size:10},color:'#6b4c35',maxRotation:45,autoSkip:true,maxTicksLimit:20},
                 grid:{color:'rgba(0,0,0,0.05)'},
                 border:{color:'rgba(0,0,0,0.1)'}
               },
@@ -2190,8 +2339,25 @@ async function exportPDF(){
                 title:{display:true,text:'Brebis',font:{size:10},color:'#6b4c35'}
               }
             },
-            layout:{padding:{top:10,right:10,bottom:5,left:5}}
-          }
+            layout:{padding:{top:22,right:10,bottom:5,left:5}}
+          },
+          plugins:[{
+            afterDraw: function(chart){
+              const c2=chart.ctx; c2.save();
+              const ds=chart.data.datasets[0];
+              const meta=chart.getDatasetMeta(0);
+              ds.data.forEach((value,i)=>{
+                if(i%2===0 && i>0 && meta.data[i]){
+                  const pt=meta.data[i];
+                  c2.fillStyle='#2d6a4f';
+                  c2.font='bold 11px sans-serif';
+                  c2.textAlign='center';
+                  c2.fillText(String(value), pt.x, pt.y-10);
+                }
+              });
+              c2.restore();
+            }
+          }]
         });
 
         await new Promise(r=>setTimeout(r,120));
@@ -2199,9 +2365,9 @@ async function exportPDF(){
         chart.destroy();
         document.body.removeChild(chartCanvas);
 
-        checkPage(52);
-        doc.addImage(imgData,'PNG',margin,y,contentW,50);
-        y+=54;
+        checkPage(58);
+        doc.addImage(imgData,'PNG',margin,y,contentW,56);
+        y+=60;
       } else {
         checkPage(6);
         setFont(8,'normal',[170,160,145]);

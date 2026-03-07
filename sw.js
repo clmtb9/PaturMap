@@ -4,7 +4,7 @@
 //  Network-first pour les tuiles de carte (avec fallback cache)
 // ══════════════════════════════════════════════════════
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE_STATIC = `paturmap-static-${VERSION}`;
 const CACHE_TILES  = `paturmap-tiles-${VERSION}`;
 
