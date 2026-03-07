@@ -214,14 +214,18 @@ input[type=text]:focus{border-color:var(--grass);}
 .leaflet-popup-content{margin:12px 14px!important;}
 
 /* ─── ZONE DE RÉFÉRENCE (non-éditable) ─── */
-.zone-label{
-  background:transparent;border:none;
-  font-family:'Playfair Display',serif;
-  font-size:13px;font-weight:700;
-  color:#7b3f00;text-shadow:0 1px 3px rgba(255,255,255,.9),0 0 8px rgba(255,255,255,.6);
-  white-space:nowrap;pointer-events:none;
-  display:flex;align-items:center;gap:4px;
+.zone-tooltip{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-family: 'Playfair Display', serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #7b3f00 !important;
+  text-shadow: 0 1px 3px rgba(255,255,255,.95), 0 0 10px rgba(255,255,255,.7) !important;
+  white-space: nowrap !important;
 }
+.zone-tooltip::before{ display:none !important; }
 
 /* ─── SATELLITE TOGGLE ─── */
 #btnSat{
@@ -1124,10 +1128,9 @@ function loadParcs(){
 // ══════════════════════════════════════════════════════
 function loadZones(){
   REFERENCE_ZONES.forEach(z=>{
-    const pts = z.points.map(p=>[p.lat, p.lng]);
-    const area = calcArea(z.points.map(p=>L.latLng(p.lat, p.lng)));
+    const latlngs = z.points.map(p=>[p.lat, p.lng]);
 
-    const polygon = L.polygon(pts, {
+    const polygon = L.polygon(latlngs, {
       color:       z.color,
       weight:      3,
       dashArray:   '8 5',
@@ -1136,17 +1139,15 @@ function loadZones(){
       interactive: true
     }).addTo(map);
 
-    // Label centré
-    const center = polygon.getBounds().getCenter();
-    const labelIcon = L.divIcon({
-      className: '',
-      html: `<div class="zone-label">📍 ${z.name}</div>`,
-      iconSize: null,
-      iconAnchor: null
+    // Label centré via tooltip permanent (plus fiable que divIcon)
+    polygon.bindTooltip(z.name, {
+      permanent:  true,
+      direction:  'center',
+      className:  'zone-tooltip'
     });
-    L.marker(center, {icon:labelIcon, interactive:false, zIndexOffset:-100}).addTo(map);
 
     // Popup lecture seule
+    const area = calcArea(z.points.map(p=>L.latLng(p.lat,p.lng)));
     polygon.bindPopup(`
       <div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:${z.color};margin-bottom:6px">📍 ${z.name}</div>
       <div style="font-size:12px;color:#666;line-height:1.6">
@@ -1180,10 +1181,10 @@ confirmAddBetween = function(){ _confirmAddBetween(); setTimeout(saveParcs,100);
 loadParcs();
 // Charger les zones de référence (toujours, indépendamment du localStorage)
 loadZones();
-// Si aucun parc utilisateur, centrer sur les zones de référence
-if(!parcs.length && REFERENCE_ZONES.length){
-  const pts = REFERENCE_ZONES.flatMap(z=>z.points.map(p=>[p.lat,p.lng]));
-  map.fitBounds(L.latLngBounds(pts), {padding:[60,60]});
+// Toujours zoomer sur les zones de référence au démarrage
+if(REFERENCE_ZONES.length){
+  const allPts = REFERENCE_ZONES.flatMap(z=>z.points.map(p=>[p.lat,p.lng]));
+  map.fitBounds(L.latLngBounds(allPts), {padding:[80,80]});
 }
 
 // ══════════════════════════════════════════════════════
