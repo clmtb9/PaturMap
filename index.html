@@ -213,7 +213,59 @@ input[type=text]:focus{border-color:var(--grass);}
 .leaflet-popup-content-wrapper{border-radius:14px!important;font-family:'DM Sans',sans-serif!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important;}
 .leaflet-popup-content{margin:12px 14px!important;}
 
-/* ─── ZONE DE RÉFÉRENCE (non-éditable) ─── */
+/* ─── STATUTS ─── */
+.status-row{display:flex;gap:7px;margin-bottom:14px;}
+.status-btn{flex:1;border:none;border-radius:10px;padding:9px 6px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;opacity:.45;}
+.status-btn.active{opacity:1;transform:scale(1.04);}
+.status-btn:active{transform:scale(.95);}
+.sb-dispo{background:#d4edda;color:#1a6630;}
+.sb-occupe{background:#fff3cd;color:#856404;}
+.sb-repos{background:#e2e3e5;color:#383d41;}
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.status-badge.dispo{background:#d4edda;color:#1a6630;}
+.status-badge.occupe{background:#fff3cd;color:#856404;}
+.status-badge.repos{background:#e2e3e5;color:#383d41;}
+
+/* ─── BREBIS / DENSITÉ ─── */
+.brebis-row{display:flex;gap:8px;align-items:center;margin-bottom:14px;}
+.brebis-input{width:80px;padding:8px 10px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;font-size:16px;font-family:'DM Sans',sans-serif;color:var(--earth);background:white;text-align:center;}
+.brebis-input:focus{outline:none;border-color:var(--grass);}
+.densite-badge{background:rgba(74,124,89,.1);color:var(--grass);padding:6px 12px;border-radius:10px;font-size:12px;font-weight:700;flex:1;text-align:center;}
+
+/* ─── NOTES ─── */
+.notes-area{width:100%;min-height:80px;padding:10px 12px;border:1.5px solid rgba(61,43,31,.2);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--earth);background:white;resize:none;line-height:1.5;}
+.notes-area:focus{outline:none;border-color:var(--grass);}
+
+/* ─── HISTORIQUE ROTATION ─── */
+.rot-entry{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0ece4;}
+.rot-entry:last-child{border-bottom:none;}
+.rot-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.rot-info{flex:1;font-size:12px;color:var(--earth);line-height:1.4;}
+.rot-date{font-size:10px;color:#aaa;margin-top:1px;}
+.rot-del{border:none;background:none;color:#ccc;font-size:14px;cursor:pointer;padding:2px 4px;}
+.rot-del:active{color:var(--danger);}
+.rot-add-row{display:flex;gap:7px;margin-top:10px;}
+.rot-add-input{flex:1;padding:8px 10px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--earth);}
+.rot-add-input:focus{outline:none;border-color:var(--grass);}
+.rot-add-btn{background:var(--grass);color:white;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+
+/* ─── SECTEURS ─── */
+.secteur-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(26,61,107,.1);color:var(--blue);margin-right:4px;margin-bottom:4px;}
+.secteur-select{width:100%;padding:10px 12px;border:1.5px solid rgba(61,43,31,.2);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--earth);background:white;margin-bottom:8px;}
+.secteur-select:focus{outline:none;border-color:var(--grass);}
+
+/* ─── MESURE DISTANCE ─── */
+#measureBar{background:#6d28d9;color:white;}
+.measure-result{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(28px + var(--sb));z-index:600;background:#6d28d9;color:white;padding:12px 22px;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;display:none;white-space:nowrap;box-shadow:0 4px 20px rgba(109,40,217,.5);}
+#measureResult.on{display:block;}
+#btnMeasure{position:fixed;top:calc(var(--hh) + 114px);left:10px;z-index:600;background:white;border:none;border-radius:10px;width:44px;height:44px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:9px;font-weight:700;color:#444;font-family:'DM Sans',sans-serif;transition:transform .15s;}
+#btnMeasure:active{transform:scale(.9);}
+#btnMeasure.active{background:#6d28d9;color:white;}
+#btnMeasure .sat-icon{font-size:18px;line-height:1;}
+
+/* ─── DIST GPS ─── */
+.gps-dist{background:rgba(26,119,255,.1);color:#1a77ff;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;margin-bottom:14px;display:none;}
+.gps-dist.on{display:block;}
 .zone-tooltip{
   background: transparent !important;
   border: none !important;
@@ -351,6 +403,25 @@ input[type=text]:focus{border-color:var(--grass);}
 <!-- ADD-BETWEEN ACTION BUTTON -->
 <button id="btnAddBetween" onclick="confirmAddBetween()">➕ Insérer ici entre les voisins</button>
 
+<!-- MEASURE BAR -->
+<div id="measureBar" class="topbar">
+  <div class="tb-name">📏 Mesure de distance</div>
+  <div id="measureCount" class="tb-badge">0 pt</div>
+  <div class="tb-btns">
+    <button class="tb-btn tbb-undo" onclick="undoMeasurePt()">↩</button>
+    <button class="tb-btn tbb-cancel" onclick="cancelMeasure()">✗ Fin</button>
+  </div>
+</div>
+
+<!-- MEASURE RESULT -->
+<div id="measureResult" class="measure-result"></div>
+
+<!-- MEASURE BUTTON -->
+<button id="btnMeasure" onclick="toggleMeasure()" title="Mesurer une distance">
+  <span class="sat-icon">📏</span>
+  <span>Mesure</span>
+</button>
+
 <!-- SATELLITE TOGGLE -->
 <button id="btnSat" onclick="toggleSat()" title="Vue satellite">
   <span class="sat-icon">🛰️</span>
@@ -431,16 +502,25 @@ input[type=text]:focus{border-color:var(--grass);}
   <div class="s-body" id="piBody"></div>
 </div>
 
+<!-- SHEET: SECTEURS -->
+<div class="sheet" id="secteurSheet">
+  <div class="s-handle"></div>
+  <div class="s-title">🗂️ Secteurs</div>
+  <div class="s-body" id="secteurBody"></div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════
 let parcs=[], parcId=0;
+let secteurs=[], secteurId=0;  // groupes de parcs
 let drawing=false, curPts=[], curMarkers=[], curLine=null, selColor='#4a7c59';
 let editingId=null;
 let addBetweenMode=false, addBetweenParcId=null;
 let gpsMarker=null, gpsCircle=null, gpsWatch=null;
 let searchTimer=null;
+let measureMode=false, measurePts=[], measureMarkers=[], measureLine=null;
 
 // ══════════════════════════════════════════════════════
 //  ZONES DE RÉFÉRENCE — définies ici, chargées après la carte
@@ -664,7 +744,7 @@ document.getElementById('customColor').addEventListener('input',e=>{
 // ══════════════════════════════════════════════════════
 //  SHEETS
 // ══════════════════════════════════════════════════════
-const SHEETS=['newParcSheet','listSheet','infoSheet'];
+const SHEETS=['newParcSheet','listSheet','infoSheet','secteurSheet'];
 function openSheet(id){
   SHEETS.forEach(s=>document.getElementById(s).classList.remove('open'));
   document.getElementById(id).classList.add('open');
@@ -955,37 +1035,122 @@ function ptSegDist(p,a,b){
 }
 
 // ══════════════════════════════════════════════════════
-//  INFO SHEET
+//  INFO SHEET — complète
 // ══════════════════════════════════════════════════════
 function openInfoSheet(id){
   const p=parcs.find(x=>x.id===id);if(!p)return;
+  // Ensure extended fields exist
+  if(!p.status)    p.status='dispo';
+  if(!p.brebis)    p.brebis=0;
+  if(!p.notes)     p.notes='';
+  if(!p.rotations) p.rotations=[];
+  if(!p.secteurId) p.secteurId=null;
+
   map.closePopup();
   document.getElementById('piDot').style.background=p.color;
   document.getElementById('piName').textContent=p.name;
   const ctr=p.polygon.getBounds().getCenter();
+
+  // Distance depuis GPS
+  let gpsDistHtml='';
+  if(gpsMarker){
+    const d=haversine(gpsMarker.getLatLng(), ctr);
+    gpsDistHtml=`<div class="gps-dist on">📍 Distance depuis votre position : <b>${formatDist(d)}</b></div>`;
+  }
+
+  // Densité
+  const densite = p.brebis>0 && p.area>0 ? (p.brebis/(p.area/10000)).toFixed(1)+' brebis/ha' : '—';
+
+  // Secteur actuel
+  const sec = secteurs.find(s=>s.id===p.secteurId);
+  const secHtml = sec ? `<div style="margin-bottom:10px"><span class="secteur-tag">🗂️ ${sec.name}</span></div>` : '';
+
+  // Statut labels
+  const statuts=[{k:'dispo',e:'✅',l:'Disponible'},{k:'occupe',e:'🐑',l:'Occupé'},{k:'repos',e:'💤',l:'En repos'}];
+
+  // Rotations
+  const rotHtml = p.rotations.length
+    ? p.rotations.map((r,i)=>`
+        <div class="rot-entry">
+          <div class="rot-dot" style="background:${r.type==='entree'?'#1a6630':'#856404'}"></div>
+          <div class="rot-info">
+            <div>${r.type==='entree'?'🐑 Entrée':'🚪 Sortie'} — ${r.brebis} brebis</div>
+            <div class="rot-date">${r.date}${r.note?' · '+r.note:''}</div>
+          </div>
+          <button class="rot-del" onclick="deleteRotation(${p.id},${i})">✕</button>
+        </div>`).join('')
+    : '<div style="font-size:12px;color:#aaa;padding:8px 0">Aucun mouvement enregistré</div>';
+
   document.getElementById('piBody').innerHTML=`
     <div class="pi-stats">
       <div class="pi-stat"><div class="pi-sv">${formatArea(p.area)}</div><div class="pi-sl">Surface</div></div>
       <div class="pi-stat"><div class="pi-sv">${p.points.length}</div><div class="pi-sl">Points</div></div>
+      <div class="pi-stat"><div class="pi-sv">${p.brebis||'—'}</div><div class="pi-sl">Brebis</div></div>
     </div>
-    <div style="font-size:11px;color:#888;margin-bottom:14px">Centre : ${ctr.lat.toFixed(5)}, ${ctr.lng.toFixed(5)}</div>
-    <div style="display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap">
+    ${gpsDistHtml}
+    ${secHtml}
+
+    <!-- STATUT -->
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Statut</div>
+    <div class="status-row">
+      ${statuts.map(s=>`<button class="status-btn sb-${s.k}${p.status===s.k?' active':''}" onclick="setStatus(${p.id},'${s.k}')">${s.e} ${s.l}</button>`).join('')}
+    </div>
+
+    <!-- BREBIS -->
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Troupeau</div>
+    <div class="brebis-row">
+      <button onclick="stepBrebis(${p.id},-1)" style="width:36px;height:36px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;background:white;font-size:18px;cursor:pointer;flex-shrink:0">−</button>
+      <input type="number" class="brebis-input" id="brebisInput-${p.id}" value="${p.brebis||0}" min="0" onchange="setBrebis(${p.id},this.value)">
+      <button onclick="stepBrebis(${p.id},1)" style="width:36px;height:36px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;background:white;font-size:18px;cursor:pointer;flex-shrink:0">＋</button>
+      <div class="densite-badge">🌿 ${densite}</div>
+    </div>
+
+    <!-- NOTES -->
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Notes</div>
+    <textarea class="notes-area" id="notesArea-${p.id}" placeholder="État de l'herbe, clôture, remarques…" onchange="setNotes(${p.id},this.value)">${p.notes||''}</textarea>
+
+    <!-- SECTEUR -->
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin:12px 0 8px">Secteur</div>
+    <select class="secteur-select" onchange="setSecteur(${p.id},this.value)">
+      <option value="">— Aucun secteur —</option>
+      ${secteurs.map(s=>`<option value="${s.id}"${p.secteurId===s.id?' selected':''}>${s.name}</option>`).join('')}
+    </select>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:14px" onclick="openSecteurSheet()">🗂️ Gérer les secteurs</button>
+
+    <!-- HISTORIQUE ROTATIONS -->
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Historique rotations</div>
+    <div id="rotList-${p.id}">${rotHtml}</div>
+    <div class="rot-add-row">
+      <select class="rot-add-input" id="rotType-${p.id}" style="flex:0.8">
+        <option value="entree">🐑 Entrée</option>
+        <option value="sortie">🚪 Sortie</option>
+      </select>
+      <input type="number" class="rot-add-input" id="rotBrebis-${p.id}" placeholder="Nb brebis" min="0" style="flex:0.8">
+      <button class="rot-add-btn" onclick="addRotation(${p.id})">＋ Ajouter</button>
+    </div>
+
+    <!-- ACTIONS -->
+    <div style="display:flex;gap:7px;margin:16px 0 14px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="renameParc(${p.id})">✏️ Renommer</button>
       <button class="btn btn-blue btn-sm" style="flex:1" onclick="closeAllSheets();startEdit(${p.id})">🔧 Modifier</button>
       <button class="btn btn-sm" style="flex:1;background:#2d6a4f;color:white" onclick="closeAllSheets();startAddBetween(${p.id})">➕ Point</button>
       <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteParc(${p.id})">🗑️</button>
     </div>
+
+    <!-- COULEUR -->
     <div id="colorPickerWrap-${p.id}" style="display:none;margin-bottom:14px;background:white;border-radius:12px;padding:12px 14px;box-shadow:0 2px 8px var(--shadow)">
       <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Couleur du parc</div>
       <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
         ${['#4a7c59','#e05555','#4a90d9','#c9a84c','#9b59b6','#e67e22','#1abc9c','#e91e63'].map(c=>`
-          <div onclick="recolorParc(${p.id},'${c}')" style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid ${c===p.color?'var(--earth)':'transparent'};cursor:pointer;transition:transform .15s;flex-shrink:0" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></div>`).join('')}
-        <div style="width:32px;height:32px;border-radius:50%;border:2px dashed var(--bark);background:white;display:flex;align-items:center;justify-content:center;font-size:14px;position:relative;overflow:hidden;flex-shrink:0" title="Couleur personnalisée">
+          <div onclick="recolorParc(${p.id},'${c}')" style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid ${c===p.color?'var(--earth)':'transparent'};cursor:pointer;transition:transform .15s;flex-shrink:0"></div>`).join('')}
+        <div style="width:32px;height:32px;border-radius:50%;border:2px dashed var(--bark);background:white;display:flex;align-items:center;justify-content:center;font-size:14px;position:relative;overflow:hidden;flex-shrink:0">
           🎨<input type="color" value="${p.color}" style="position:absolute;opacity:0;width:100%;height:100%;cursor:pointer" oninput="recolorParc(${p.id},this.value)">
         </div>
       </div>
     </div>
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:14px" id="btnToggleColor-${p.id}" onclick="toggleColorPicker(${p.id})">🎨 Changer la couleur</button>
+
+    <!-- POINTS GPS -->
     <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Points GPS</div>
     ${p.points.map((pt,i)=>`
       <div class="pt-row">
@@ -994,12 +1159,8 @@ function openInfoSheet(id){
         <button class="pt-copy" data-lat="${pt.lat}" data-lng="${pt.lng}">📋 Copier</button>
       </div>`).join('')}
   `;
-  // Attach copy handlers in JS (no inline onclick → clipboard works)
   document.querySelectorAll('#piBody .pt-copy').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const txt=`${btn.dataset.lat}, ${btn.dataset.lng}`;
-      copyText(txt,btn);
-    });
+    btn.addEventListener('click',()=>copyText(`${btn.dataset.lat}, ${btn.dataset.lng}`,btn));
   });
   openSheet('infoSheet');
 }
@@ -1028,7 +1189,206 @@ function fallbackCopy(txt,btn,ok){
 }
 
 // ══════════════════════════════════════════════════════
-//  PARCS LIST
+//  STATUT
+// ══════════════════════════════════════════════════════
+function setStatus(id,status){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  p.status=status; saveParcs(); openInfoSheet(id);
+}
+
+// ══════════════════════════════════════════════════════
+//  BREBIS
+// ══════════════════════════════════════════════════════
+function setBrebis(id,val){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  p.brebis=Math.max(0,parseInt(val)||0); saveParcs(); openInfoSheet(id);
+}
+function stepBrebis(id,delta){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  p.brebis=Math.max(0,(p.brebis||0)+delta); saveParcs(); openInfoSheet(id);
+}
+
+// ══════════════════════════════════════════════════════
+//  NOTES
+// ══════════════════════════════════════════════════════
+function setNotes(id,val){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  p.notes=val; saveParcs();
+}
+
+// ══════════════════════════════════════════════════════
+//  ROTATIONS
+// ══════════════════════════════════════════════════════
+function addRotation(id){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  const type=document.getElementById(`rotType-${id}`).value;
+  const brebis=parseInt(document.getElementById(`rotBrebis-${id}`).value)||0;
+  if(!brebis){alert('Entrez un nombre de brebis.');return;}
+  if(!p.rotations) p.rotations=[];
+  const now=new Date();
+  const date=`${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
+  p.rotations.unshift({type,brebis,date});
+  // Auto-update brebis count on entry
+  if(type==='entree') p.brebis=brebis;
+  if(type==='sortie') p.brebis=0;
+  saveParcs(); openInfoSheet(id);
+}
+function deleteRotation(id,idx){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  p.rotations.splice(idx,1); saveParcs(); openInfoSheet(id);
+}
+
+// ══════════════════════════════════════════════════════
+//  SECTEURS
+// ══════════════════════════════════════════════════════
+function setSecteur(id,secteurIdVal){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  p.secteurId=secteurIdVal?parseInt(secteurIdVal):null;
+  saveParcs();
+}
+
+function openSecteurSheet(){
+  renderSecteurSheet();
+  openSheet('secteurSheet');
+}
+
+function renderSecteurSheet(){
+  const el=document.getElementById('secteurBody');
+  const secList=secteurs.length
+    ? secteurs.map(s=>{
+        const count=parcs.filter(p=>p.secteurId===s.id).length;
+        return `<div class="pcard" style="border-left-color:var(--blue)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="pname">🗂️ ${s.name}</div>
+            <button onclick="deleteSecteur(${s.id})" style="margin-left:auto;border:none;background:none;color:#ccc;font-size:16px;cursor:pointer">✕</button>
+          </div>
+          <div class="pmeta">${count} parc${count>1?'s':''}</div>
+        </div>`;
+      }).join('')
+    : '<div style="font-size:13px;color:#aaa;margin-bottom:14px">Aucun secteur créé.</div>';
+  el.innerHTML=`
+    ${secList}
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px">Nouveau secteur</div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="newSecteurName" placeholder="Nom du secteur…" style="flex:1"/>
+      <button class="btn btn-blue btn-sm" onclick="addSecteur()">＋ Créer</button>
+    </div>`;
+}
+
+function addSecteur(){
+  const name=document.getElementById('newSecteurName').value.trim();
+  if(!name)return;
+  secteurs.push({id:++secteurId, name});
+  saveSecteurs();
+  document.getElementById('newSecteurName').value='';
+  renderSecteurSheet();
+}
+
+function deleteSecteur(id){
+  secteurs=secteurs.filter(s=>s.id!==id);
+  parcs.forEach(p=>{if(p.secteurId===id)p.secteurId=null;});
+  saveSecteurs(); saveParcs(); renderSecteurSheet();
+}
+
+function saveSecteurs(){
+  try{localStorage.setItem('paturmap_secteurs_v1',JSON.stringify({secteurId,data:secteurs}));}
+  catch(e){}
+}
+function loadSecteurs(){
+  try{
+    const raw=localStorage.getItem('paturmap_secteurs_v1');
+    if(!raw)return;
+    const d=JSON.parse(raw);
+    secteurId=d.secteurId||0;
+    secteurs=d.data||[];
+  }catch(e){}
+}
+
+// ══════════════════════════════════════════════════════
+//  MESURE DE DISTANCE
+// ══════════════════════════════════════════════════════
+function toggleMeasure(){
+  if(measureMode) cancelMeasure();
+  else startMeasure();
+}
+
+function startMeasure(){
+  measureMode=true; measurePts=[]; measureMarkers=[];
+  if(measureLine){map.removeLayer(measureLine);measureLine=null;}
+  measureLine=L.polyline([],{color:'#6d28d9',weight:3,dashArray:'6 4'}).addTo(map);
+  document.getElementById('measureBar').classList.add('on');
+  document.getElementById('btnMeasure').classList.add('active');
+  document.getElementById('measureResult').classList.remove('on');
+  showXhair(true);
+  document.getElementById('btnAddPt').textContent='📏 Placer un point';
+  document.getElementById('btnAddPt').classList.add('on');
+  document.getElementById('btnAddPt').onclick=addMeasurePt;
+  updMeasureCount();
+}
+
+function addMeasurePt(){
+  const ll=getXhairLatLng();
+  measurePts.push(ll);
+  const icon=L.divIcon({className:'',html:`<div style="width:12px;height:12px;border-radius:50%;background:#6d28d9;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,iconSize:[12,12],iconAnchor:[6,6]});
+  measureMarkers.push(L.marker([ll.lat,ll.lng],{icon}).addTo(map));
+  measureLine.setLatLngs(measurePts.map(p=>[p.lat,p.lng]));
+  updMeasureCount();
+  if(measurePts.length>=2){
+    const total=totalMeasureDist();
+    const el=document.getElementById('measureResult');
+    el.textContent=`📏 ${formatDist(total)}`;
+    el.classList.add('on');
+    el.style.display='block';
+  }
+}
+
+function undoMeasurePt(){
+  if(!measurePts.length)return;
+  measurePts.pop();
+  const m=measureMarkers.pop();if(m)map.removeLayer(m);
+  measureLine.setLatLngs(measurePts.map(p=>[p.lat,p.lng]));
+  updMeasureCount();
+  if(measurePts.length<2) document.getElementById('measureResult').classList.remove('on');
+}
+
+function cancelMeasure(){
+  measureMode=false;
+  measureMarkers.forEach(m=>map.removeLayer(m)); measureMarkers=[];
+  measurePts=[];
+  if(measureLine){map.removeLayer(measureLine);measureLine=null;}
+  document.getElementById('measureBar').classList.remove('on');
+  document.getElementById('btnMeasure').classList.remove('active');
+  const el=document.getElementById('measureResult');
+  el.classList.remove('on'); el.style.display='none';
+  showXhair(false);
+  document.getElementById('btnAddPt').classList.remove('on');
+  document.getElementById('btnAddPt').textContent='📍 Placer un point ici';
+  document.getElementById('btnAddPt').onclick=addPtAtCenter;
+}
+
+function updMeasureCount(){
+  const n=measurePts.length;
+  document.getElementById('measureCount').textContent=`${n} pt${n>1?'s':''}`;
+}
+
+function totalMeasureDist(){
+  let d=0;
+  for(let i=1;i<measurePts.length;i++) d+=haversine(measurePts[i-1],measurePts[i]);
+  return d;
+}
+
+// ══════════════════════════════════════════════════════
+//  GÉOMÉTRIE — distance
+// ══════════════════════════════════════════════════════
+function haversine(a,b){
+  const R=6371000, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180;
+  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function formatDist(m){return m>=1000?`${(m/1000).toFixed(2)} km`:`${Math.round(m)} m`;}
+
+// ══════════════════════════════════════════════════════
+//  LIST — avec statut et secteur
 // ══════════════════════════════════════════════════════
 function renderList(){
   const el=document.getElementById('parcsList');
@@ -1036,17 +1396,37 @@ function renderList(){
   if(!parcs.length){
     el.innerHTML='<div class="empty"><div class="big">🐑</div>Aucun parc créé.<br>Appuyez sur <b>＋</b> pour commencer !</div>';return;
   }
-  el.innerHTML=parcs.map(p=>`
-    <div class="pcard" style="border-left-color:${p.color}" onclick="closeAllSheets();setTimeout(()=>{map.fitBounds(parcs.find(x=>x.id===${p.id}).polygon.getBounds(),{padding:[60,60]});openInfoSheet(${p.id});},300)">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div style="width:12px;height:12px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
-        <div class="pname">${p.name}</div>
-      </div>
-      <div class="pmeta" style="margin-top:6px">
-        <span class="abadge">${formatArea(p.area)}</span>
-        <span>${p.points.length} points</span>
-      </div>
-    </div>`).join('');
+  const statIcons={dispo:'✅',occupe:'🐑',repos:'💤'};
+  // Group by secteur
+  const bySec={};
+  parcs.forEach(p=>{
+    const key=p.secteurId||'__none__';
+    if(!bySec[key])bySec[key]=[];
+    bySec[key].push(p);
+  });
+  let html='';
+  Object.keys(bySec).forEach(key=>{
+    if(key!=='__none__'){
+      const sec=secteurs.find(s=>s.id===parseInt(key));
+      if(sec) html+=`<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px;padding-left:4px">🗂️ ${sec.name}</div>`;
+    }
+    bySec[key].forEach(p=>{
+      const sec=secteurs.find(s=>s.id===p.secteurId);
+      html+=`<div class="pcard" style="border-left-color:${p.color}" onclick="closeAllSheets();setTimeout(()=>{map.fitBounds(parcs.find(x=>x.id===${p.id}).polygon.getBounds(),{padding:[60,60]});openInfoSheet(${p.id});},300)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:12px;height:12px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
+          <div class="pname">${p.name}</div>
+          <span style="margin-left:auto;font-size:14px">${statIcons[p.status||'dispo']}</span>
+        </div>
+        <div class="pmeta" style="margin-top:6px">
+          <span class="abadge">${formatArea(p.area)}</span>
+          <span>${p.points.length} pts</span>
+          ${p.brebis?`<span>🐑 ${p.brebis}</span>`:''}
+        </div>
+      </div>`;
+    });
+  });
+  el.innerHTML=html;
 }
 
 function toggleColorPicker(id){
@@ -1110,11 +1490,16 @@ const STORAGE_KEY = 'paturmap_parcs_v1';
 function saveParcs(){
   try {
     const data = parcs.map(p=>({
-      id:    p.id,
-      name:  p.name,
-      color: p.color,
-      area:  p.area,
-      points: p.points.map(pt=>({lat:pt.lat, lng:pt.lng}))
+      id:        p.id,
+      name:      p.name,
+      color:     p.color,
+      area:      p.area,
+      status:    p.status||'dispo',
+      brebis:    p.brebis||0,
+      notes:     p.notes||'',
+      rotations: p.rotations||[],
+      secteurId: p.secteurId||null,
+      points:    p.points.map(pt=>({lat:pt.lat, lng:pt.lng}))
     }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify({parcId, data}));
     flashSave();
@@ -1133,7 +1518,15 @@ function loadParcs(){
       const polygon = L.polygon(pts.map(p=>[p.lat,p.lng]),{
         color:d.color, fillColor:d.color, fillOpacity:.22, weight:2.5
       }).addTo(map);
-      const parc = {id:d.id, name:d.name, color:d.color, polygon, points:pts, area, ptMarkers:[]};
+      const parc = {
+        id:d.id, name:d.name, color:d.color, polygon, points:pts, area,
+        status:    d.status||'dispo',
+        brebis:    d.brebis||0,
+        notes:     d.notes||'',
+        rotations: d.rotations||[],
+        secteurId: d.secteurId||null,
+        ptMarkers:[]
+      };
       parcs.push(parc);
       buildMarkers(parc, false);
       bindPopup(parc);
@@ -1200,6 +1593,7 @@ const _confirmAddBetween = confirmAddBetween;
 confirmAddBetween = function(){ _confirmAddBetween(); setTimeout(saveParcs,100); };
 
 // Charger les parcs sauvegardés au démarrage
+loadSecteurs();
 loadParcs();
 // Charger les zones de référence (toujours, indépendamment du localStorage)
 loadZones();
