@@ -476,18 +476,12 @@ function startGpsWatch(btn){
   btn.classList.add('locating');
   if(gpsWatch!==null){ navigator.geolocation.clearWatch(gpsWatch); gpsWatch=null; }
 
-  // D'abord un getCurrentPosition pour déclencher la popup native ET
-  // récupérer la réponse (accordé / refusé) avant de lancer le watch continu.
-  navigator.geolocation.getCurrentPosition(
+  let firstFix = true; // centrer uniquement sur la toute première position reçue
+
+  gpsWatch = navigator.geolocation.watchPosition(
     pos => {
-      // Permission accordée — centrer la carte une seule fois
-      updateGpsDisplay(btn, pos, true);
-      // Puis démarrer le suivi continu sans recentrer
-      gpsWatch=navigator.geolocation.watchPosition(
-        p => updateGpsDisplay(btn, p, false),
-        err => { btn.classList.remove('locating'); },
-        {enableHighAccuracy:true, maximumAge:0}
-      );
+      updateGpsDisplay(btn, pos, firstFix);
+      firstFix = false; // les positions suivantes ne recentrent plus
     },
     err => {
       btn.classList.remove('locating');
@@ -886,6 +880,17 @@ function openInfoSheet(id){
       <button class="btn btn-sm" style="flex:1;background:#2d6a4f;color:white" onclick="closeAllSheets();startAddBetween(${p.id})">➕ Point</button>
       <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteParc(${p.id})">🗑️</button>
     </div>
+    <div id="colorPickerWrap-${p.id}" style="display:none;margin-bottom:14px;background:white;border-radius:12px;padding:12px 14px;box-shadow:0 2px 8px var(--shadow)">
+      <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Couleur du parc</div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+        ${['#4a7c59','#e05555','#4a90d9','#c9a84c','#9b59b6','#e67e22','#1abc9c','#e91e63'].map(c=>`
+          <div onclick="recolorParc(${p.id},'${c}')" style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid ${c===p.color?'var(--earth)':'transparent'};cursor:pointer;transition:transform .15s;flex-shrink:0" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></div>`).join('')}
+        <div style="width:32px;height:32px;border-radius:50%;border:2px dashed var(--bark);background:white;display:flex;align-items:center;justify-content:center;font-size:14px;position:relative;overflow:hidden;flex-shrink:0" title="Couleur personnalisée">
+          🎨<input type="color" value="${p.color}" style="position:absolute;opacity:0;width:100%;height:100%;cursor:pointer" oninput="recolorParc(${p.id},this.value)">
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:14px" id="btnToggleColor-${p.id}" onclick="toggleColorPicker(${p.id})">🎨 Changer la couleur</button>
     <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Points GPS</div>
     ${p.points.map((pt,i)=>`
       <div class="pt-row">
@@ -947,6 +952,29 @@ function renderList(){
         <span>${p.points.length} points</span>
       </div>
     </div>`).join('');
+}
+
+function toggleColorPicker(id){
+  const wrap=document.getElementById(`colorPickerWrap-${id}`);
+  const btn=document.getElementById(`btnToggleColor-${id}`);
+  const open=wrap.style.display==='none';
+  wrap.style.display=open?'block':'none';
+  btn.textContent=open?'✕ Fermer':'🎨 Changer la couleur';
+}
+
+function recolorParc(id, color){
+  const p=parcs.find(x=>x.id===id); if(!p) return;
+  p.color=color;
+  // Update polygon
+  p.polygon.setStyle({color, fillColor:color});
+  // Update markers
+  buildMarkers(p, false);
+  // Update popup
+  bindPopup(p);
+  // Save
+  saveParcs();
+  // Refresh the sheet to reflect new color
+  openInfoSheet(id);
 }
 
 function renameParc(id){
