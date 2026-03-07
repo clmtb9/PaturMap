@@ -1302,18 +1302,10 @@ function openInfoSheet(id){
 
     <!-- BREBIS -->
     <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Troupeau</div>
-    ${p.rotations.length===0 ? `
     <div class="brebis-row">
-      <button onclick="stepBrebis(${p.id},-1)" style="width:36px;height:36px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;background:white;font-size:18px;cursor:pointer;flex-shrink:0">−</button>
-      <input type="number" class="brebis-input" id="brebisInput-${p.id}" value="${p.brebis||0}" min="0" inputmode="numeric" pattern="[0-9]*" onblur="setBrebis(${p.id},this.value)">
-      <button onclick="stepBrebis(${p.id},1)" style="width:36px;height:36px;border:1.5px solid rgba(61,43,31,.2);border-radius:10px;background:white;font-size:18px;cursor:pointer;flex-shrink:0">＋</button>
-      <div class="densite-badge">🌿 ${densite}</div>
-    </div>` : `
-    <div class="brebis-row">
-      <div style="background:white;border:1.5px solid rgba(61,43,31,.1);border-radius:10px;padding:8px 14px;font-size:20px;font-weight:700;color:var(--earth);min-width:64px;text-align:center">${p.brebis||0}</div>
-      <div style="font-size:11px;color:#aaa;flex:1;line-height:1.4">Calculé depuis<br>l'historique</div>
+      <input type="number" class="brebis-input" id="brebisInput-${p.id}" value="${p.brebis||0}" min="0" inputmode="numeric" pattern="[0-9]*" onblur="setBrebis(${p.id},this.value)"${p.status==='repos'?' disabled':''}>
       <div class="densite-badge${densiteAlerte?' alerte':''}">${densiteAlerte?'⚠️':'🌿'} ${densite}${densiteAlerte?` <span style="font-size:10px;display:block;margin-top:1px">Seuil dépassé</span>`:''}</div>
-    </div>`}
+    </div>
 
     ${densiteAlerte?`<div style="background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.3);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--danger);font-weight:600">⚠️ Densité trop élevée — moins de ${densiteSeuilM2} m²/brebis</div>`:''}
 
@@ -1479,13 +1471,17 @@ function autoStatus(p){
 function setBrebis(id,val){
   const p=parcs.find(x=>x.id===id);if(!p)return;
   const n=Math.max(0,parseInt(val)||0);
-  p.brebis=n;
-  autoStatus(p);
-  bindPopup(p); saveParcs(); openInfoSheet(id);
-}
-function stepBrebis(id,delta){
-  const p=parcs.find(x=>x.id===id);if(!p)return;
-  p.brebis=Math.max(0,(p.brebis||0)+delta);
+  const prev=p.brebis??calcBrebisFromRotations(p.rotations||[]);
+  const diff=n-prev;
+  if(diff!==0){
+    if(!p.rotations)p.rotations=[];
+    const isoDate=new Date().toISOString().slice(0,10);
+    const d=new Date(isoDate);
+    const date=`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+    const type=diff>0?'entree':'sortie';
+    p.rotations.unshift({type,brebis:Math.abs(diff),date,isoDate});
+    p.brebis=calcBrebisFromRotations(p.rotations);
+  }
   autoStatus(p);
   bindPopup(p); saveParcs(); openInfoSheet(id);
 }
