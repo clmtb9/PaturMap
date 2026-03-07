@@ -2276,7 +2276,14 @@ async function exportPDF(){
         setFont(8,'bold',colors.bark); doc.text('Historique rotations', margin, y+4); y+=8;
 
         // ── Tableau récap entrées/sorties ──────────────────
-        const sorted=[...p.rotations].sort((a,b)=>(a.isoDate||'').localeCompare(b.isoDate||''));
+        const sorted=[...p.rotations].sort((a,b)=>{
+          const d=(a.isoDate||'').localeCompare(b.isoDate||'');
+          if(d!==0) return d;
+          // Same date: restore chronological insertion order.
+          // rotations are stored newest-first (unshift), so older entries
+          // have a higher index — put them first for correct cumul.
+          return p.rotations.indexOf(b)-p.rotations.indexOf(a);
+        });
         const colW=[28,22,22,22,22];
         const colX=[margin, margin+28, margin+50, margin+72, margin+94];
         const rowH=6;
