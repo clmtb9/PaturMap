@@ -551,7 +551,7 @@ input[type=text]:focus{border-color:var(--grass);}
       </div>
       <div style="display:flex;justify-content:space-between;padding:5px 0">
         <span style="font-size:12px;color:#888">Créateur</span>
-        <span style="font-size:12px;font-weight:600;color:var(--earth)">Clément Bataille</span>
+        <span style="font-size:12px;font-weight:600;color:var(--earth)">Clément B</span>
       </div>
     </div>
     <button onclick="closeAbout()" style="width:100%;padding:13px;border:none;border-radius:12px;background:var(--earth);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;">Fermer</button>
@@ -2146,7 +2146,7 @@ async function exportPDF(){
     setFont(9,'normal',[180,165,145]);
     doc.text(`Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`, margin, 50);
     setFont(7,'italic',[150,135,115]);
-    doc.text('PâturMap v3 — Clément Bataille', margin, 60);
+    doc.text('PâturMap v3 — Clément B', margin, 60);
     // Résumé dans le bloc droit — 3 mini-stats empilées
     const rbCx = W - rbW/2;
     setFont(16,'bold',[245,240,232]);
