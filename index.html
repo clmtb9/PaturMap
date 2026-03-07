@@ -383,7 +383,7 @@ input[type=text]:focus{border-color:var(--grass);}
 <body>
 
 <div id="header">
-  <div class="logo">🐑 Pâtur<span>Map</span></div>
+  <div class="logo" onclick="showAbout()" onkeydown="if(event.key==='Enter'||event.key===' '){showAbout();event.preventDefault();}" tabindex="0" role="button" aria-label="À propos de PâturMap" style="cursor:pointer">🐑 Pâtur<span>Map</span></div>
   <div id="searchWrap">
     <input type="text" id="searchInput" placeholder="Adresse ou lat, lng…" autocomplete="off" autocorrect="off" spellcheck="false"/>
     <button id="searchClear" onclick="clearSearch()">✕</button>
@@ -531,7 +531,34 @@ input[type=text]:focus{border-color:var(--grass);}
   </div>
 </div>
 
-<div id="overlay" onclick="closeAllSheets()"></div>
+<div id="aboutModal" style="display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px;" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+  <div style="background:var(--cream);border-radius:20px;padding:28px 24px;max-width:300px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.4);text-align:center;">
+    <div style="font-size:40px;margin-bottom:10px">🐑</div>
+    <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--earth);margin-bottom:4px" id="aboutTitle">PâturMap</div>
+    <div style="font-size:12px;color:var(--bark);margin-bottom:18px">Gestion de parcs à brebis</div>
+    <div style="background:white;border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:left;border:1.5px solid rgba(61,43,31,.1)">
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(61,43,31,.07)">
+        <span style="font-size:12px;color:#888">Version</span>
+        <span style="font-size:12px;font-weight:700;color:var(--earth)">v3</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(61,43,31,.07)">
+        <span style="font-size:12px;color:#888">Date</span>
+        <span id="aboutDate" style="font-size:12px;font-weight:600;color:var(--earth)">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(61,43,31,.07)">
+        <span style="font-size:12px;color:#888">Heure</span>
+        <span id="aboutTime" style="font-size:12px;font-weight:600;color:var(--earth)">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0">
+        <span style="font-size:12px;color:#888">Créateur</span>
+        <span style="font-size:12px;font-weight:600;color:var(--earth)">Clément Bataille</span>
+      </div>
+    </div>
+    <button onclick="closeAbout()" style="width:100%;padding:13px;border:none;border-radius:12px;background:var(--earth);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;">Fermer</button>
+  </div>
+</div>
+
+
 
 <!-- QUIT CONFIRMATION MODAL -->
 <div id="quitModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px;">
@@ -877,6 +904,16 @@ function cancelQuit(){
 function confirmQuit(){
   document.getElementById('quitModal').style.display='none';
   history.back();
+}
+
+function showAbout(){
+  const now=new Date();
+  document.getElementById('aboutDate').textContent=now.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('aboutTime').textContent=now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('aboutModal').style.display='flex';
+}
+function closeAbout(){
+  document.getElementById('aboutModal').style.display='none';
 }
 
 // État initial dans l'historique pour que le premier "retour" ne quitte pas l'app
@@ -2089,32 +2126,42 @@ async function exportPDF(){
     const parcsRepos   = parcs.filter(p=>p.status==='repos').length;
 
     // ── PAGE DE GARDE ────────────────────────────────────
-    fillRect(0,0,W,60,colors.earth);
-    fillRect(0,55,W,5,colors.hay);
-    // Bloc décoratif droite
-    fillRect(W-60,0,60,55,colors.bark);
-    setFont(26,'bold',[245,240,232]);
-    doc.text('PâturMap', margin, 24);
-    setFont(11,'normal',colors.hay);
-    doc.text('Rapport de gestion des parcs', margin, 34);
+    const hdrH = 68;
+    fillRect(0, 0, W, hdrH, colors.earth);
+    fillRect(0, hdrH-5, W, 5, colors.hay);
+    // Bloc décoratif droite (3 stats empilées)
+    const rbW = 62;
+    fillRect(W-rbW, 0, rbW, hdrH-5, colors.bark);
+    // Titre + sous-titre
+    setFont(30,'bold',[245,240,232]);
+    doc.text('PâturMap', margin, 26);
+    setFont(12,'normal',colors.hay);
+    doc.text('Rapport de gestion des parcs', margin, 38);
     setFont(9,'normal',[180,165,145]);
-    doc.text(`Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`, margin, 44);
-    // Résumé dans le bloc droit
-    setFont(18,'bold',[245,240,232]);
-    doc.text(String(parcs.length), W-30, 19, {align:'center'});
+    doc.text(`Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`, margin, 50);
+    setFont(7,'italic',[150,135,115]);
+    doc.text('PâturMap v3 — Clément Bataille', margin, 60);
+    // Résumé dans le bloc droit — 3 mini-stats empilées
+    const rbCx = W - rbW/2;
+    setFont(16,'bold',[245,240,232]);
+    doc.text(String(parcs.length), rbCx, 17, {align:'center'});
     setFont(7,'normal',colors.hay);
-    doc.text(`parc${parcs.length>1?'s':''}`, W-30, 26, {align:'center'});
-    setFont(10,'bold',[245,240,232]);
-    doc.text(formatArea(totalSurface), W-30, 36, {align:'center'});
+    doc.text(`parc${parcs.length>1?'s':''}`, rbCx, 24, {align:'center'});
+    // séparateur
+    doc.setDrawColor(...colors.hay); doc.setLineWidth(0.3);
+    doc.line(W-rbW+6, 27, W-6, 27);
+    setFont(11,'bold',[245,240,232]);
+    doc.text(formatArea(totalSurface), rbCx, 36, {align:'center'});
     setFont(7,'normal',colors.hay);
-    doc.text('surface', W-30, 42, {align:'center'});
-    setFont(9,'bold',[245,240,232]);
-    doc.text(String(totalBrebis||0), W-30, 50, {align:'center'});
+    doc.text('surface', rbCx, 43, {align:'center'});
+    doc.line(W-rbW+6, 46, W-6, 46);
+    setFont(11,'bold',[245,240,232]);
+    doc.text(String(totalBrebis||0), rbCx, 55, {align:'center'});
     setFont(7,'normal',colors.hay);
-    doc.text('brebis', W-30, 56, {align:'center'});
+    doc.text('brebis', rbCx, 62, {align:'center'});
 
     // Stats globales section
-    y = 70;
+    y = hdrH + 10;
 
     const statBoxes=[
       {label:'Parcs',       val:parcs.length,               color:colors.blue},
@@ -2201,12 +2248,26 @@ async function exportPDF(){
 
       // Historique statuts
       if(p.statusHistory && p.statusHistory.length){
-        checkPage(8);
         const statLabPdf={dispo:'Disponible',occupe:'Occupé',repos:'En repos'};
-        const histStr=p.statusHistory.slice(0,4).map(h=>`${statLabPdf[h.status]||h.status} (${h.date||h.isoDate||'?'})`).join('  >  ');
-        setFont(7,'italic',[150,140,130]);
-        doc.text(`Historique statuts : ${histStr}`, margin, y, {maxWidth:contentW});
-        y+=6;
+        const statColPdf={dispo:[74,124,89],occupe:[201,168,76],repos:[107,76,53]};
+        const histItems=p.statusHistory.slice(0,5);
+        const histRowH=6;
+        checkPage(histRowH*(histItems.length+1)+4);
+        // Section header
+        fillRect(margin, y, contentW, histRowH, colors.bark);
+        setFont(7,'bold',[245,240,232]); doc.text('Historique des statuts', margin+4, y+4.5); y+=histRowH;
+        histItems.forEach((h,hi)=>{
+          const bg = hi%2===0 ? colors.cream : [255,255,255];
+          fillRect(margin, y, contentW, histRowH, bg);
+          const sc = statColPdf[h.status]||colors.bark;
+          fillRect(margin, y, 3, histRowH, sc);
+          setFont(7,'bold', sc);
+          doc.text(statLabPdf[h.status]||h.status, margin+6, y+4.5);
+          setFont(7,'normal',[140,130,120]);
+          doc.text(h.date||h.isoDate||'?', W-margin-4, y+4.5, {align:'right'});
+          y+=histRowH;
+        });
+        y+=4;
       }
 
       // Graphique rotations (si existe)
@@ -2259,9 +2320,9 @@ async function exportPDF(){
         fillRect(margin, y, contentW, rowH+1, colors.grass);
         setFont(7,'bold',[255,255,255]);
         doc.text('TOTAL FINAL', colX[0]+colW[0]/2, y+5, {align:'center'});
-        doc.text('', colX[1]+colW[1]/2, y+5, {align:'center'});
-        doc.text('', colX[2]+colW[2]/2, y+5, {align:'center'});
-        doc.text(String(cumul)+' brebis', colX[3]+colW[3]/2+11, y+5, {align:'center'});
+        doc.text(String(cumul), colX[3]+colW[3]/2, y+5, {align:'center'});
+        const finalM2b = cumul>0&&p.area ? Math.round(p.area/cumul) : '—';
+        doc.text(String(finalM2b), colX[4]+colW[4]/2, y+5, {align:'center'});
         y += rowH+5;
 
         // ── Graphique en escalier ──────────────────────────
