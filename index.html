@@ -220,6 +220,7 @@ input[type=text]:focus{border-color:var(--grass);}
 .status-btn{flex:1;border:none;border-radius:10px;padding:9px 6px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;opacity:.45;}
 .status-btn.active{opacity:1;transform:scale(1.04);}
 .status-btn:active{transform:scale(.95);}
+.status-btn-readonly{display:flex;align-items:center;justify-content:center;cursor:default;pointer-events:none;}
 .sb-dispo{background:#d4edda;color:#1a6630;}
 .sb-occupe{background:#fff3cd;color:#856404;}
 .sb-repos{background:#e2e3e5;color:#383d41;}
@@ -1067,8 +1068,8 @@ function bindPopup(parc){
   const statIcons={dispo:'✅',occupe:'🐑',repos:'💤'};
   const statLabels={dispo:'Disponible',occupe:'Occupé',repos:'En repos'};
   const status=parc.status||'dispo';
-  // N'écraser brebis que si on a un historique de rotations
-  if(parc.rotations&&parc.rotations.length){
+  // N'écraser brebis que si on a un historique de rotations et que le parc n'est pas en repos
+  if(parc.rotations&&parc.rotations.length&&parc.status!=='repos'){
     parc.brebis=calcBrebisFromRotations(parc.rotations);
   }
   const brebis=parc.brebis||0;
@@ -1222,7 +1223,8 @@ function openInfoSheet(id){
   if(!p.rotations) p.rotations=[];
   if(!p.secteurId) p.secteurId=null;
   // Recalculer depuis les rotations si historique présent, sinon garder la valeur manuelle
-  if(p.rotations.length) p.brebis=calcBrebisFromRotations(p.rotations);
+  // (pas de recalcul si le parc est en repos : le brebis est forcé à 0)
+  if(p.status!=='repos' && p.rotations.length) p.brebis=calcBrebisFromRotations(p.rotations);
   else if(p.brebis===undefined) p.brebis=0;
 
   map.closePopup();
@@ -1288,7 +1290,10 @@ function openInfoSheet(id){
     <!-- STATUT -->
     <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Statut</div>
     <div class="status-row">
-      ${statuts.map(s=>`<button class="status-btn sb-${s.k}${p.status===s.k?' active':''}" onclick="setStatus(${p.id},'${s.k}')">${s.e} ${s.l}</button>`).join('')}
+      ${statuts.map(s=>s.k==='repos'
+        ? `<button class="status-btn sb-repos${p.status==='repos'?' active':''}" onclick="setStatus(${p.id},'repos')">${s.e} ${s.l}</button>`
+        : `<div class="status-btn status-btn-readonly sb-${s.k}${p.status===s.k?' active':''}">${s.e} ${s.l}</div>`
+      ).join('')}
     </div>
 
     <!-- HISTORIQUE STATUTS -->
@@ -1439,6 +1444,8 @@ function confirmRepos(){
   const id=m._parcId;
   const isoDate=document.getElementById('reposDateInput').value||new Date().toISOString().slice(0,10);
   m.style.display='none';
+  const p=parcs.find(x=>x.id===id);
+  if(p) p.brebis=0;
   _applyStatus(id,'repos',isoDate);
 }
 function cancelRepos(){
@@ -1447,7 +1454,6 @@ function cancelRepos(){
 
 // Met à jour le statut automatiquement selon le nombre de brebis
 function autoStatus(p){
-  if(p.status==='repos')return;
   const newStatus=(p.brebis>0)?'occupe':'dispo';
   if(p.status===newStatus)return;
   if(!p.statusHistory)p.statusHistory=[];
