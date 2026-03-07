@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>PâturMap</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="theme-color" content="#3d2b1f">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --earth:#3d2b1f;--hay:#c9a84c;--hay-light:#e8d49a;
+  --grass:#4a7c59;--cream:#f5f0e8;--bark:#6b4c35;
+  --blue:#1a3d6b;--danger:#e05555;--shadow:rgba(61,43,31,0.18);
+  --hh:56px;--sb:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--earth);touch-action:manipulation;}
+
+/* ─── HEADER ─── */
+#header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--earth);color:var(--cream);display:flex;align-items:center;padding:0 14px;gap:10px;z-index:1000;box-shadow:0 2px 14px rgba(0,0,0,0.4);}
+.logo{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;white-space:nowrap;}
+.logo span{color:var(--hay);}
+#searchWrap{flex:1;position:relative;display:flex;align-items:center;}
+#searchInput{width:100%;padding:8px 34px 8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;background:rgba(255,255,255,0.1);color:var(--cream);outline:none;transition:border-color .2s,background .2s;}
+#searchInput::placeholder{color:rgba(245,240,232,0.45);}
+#searchInput:focus{border-color:var(--hay);background:rgba(255,255,255,0.15);}
+#searchClear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(245,240,232,0.6);font-size:15px;cursor:pointer;display:none;}
+#searchClear.on{display:block;}
+/* GPS button in header */
+#btnGps{width:38px;height:38px;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);border-radius:10px;color:var(--cream);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .2s;}
+#btnGps:active{background:rgba(255,255,255,0.25);}
+#btnGps.locating{animation:locPulse .8s infinite;}
+@keyframes locPulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ─── SEARCH DROPDOWN ─── */
+#searchResults{position:fixed;top:calc(var(--hh) + 4px);left:8px;right:8px;background:white;border-radius:14px;box-shadow:0 6px 30px rgba(0,0,0,0.22);z-index:1100;max-height:260px;overflow-y:auto;display:none;}
+#searchResults.on{display:block;}
+.sr-item{padding:12px 16px;border-bottom:1px solid #f0ece4;cursor:pointer;font-size:13px;color:var(--earth);line-height:1.4;}
+.sr-item:last-child{border-bottom:none;}
+.sr-item:active{background:var(--cream);}
+.sr-main{font-weight:600;}.sr-sub{font-size:11px;color:#888;margin-top:2px;}
+.sr-loading{padding:14px 16px;font-size:13px;color:#888;text-align:center;}
+
+/* ─── MAP ─── */
+#map{position:fixed;top:var(--hh);left:0;right:0;bottom:0;z-index:1;}
+
+/* ─── TOPBAR (draw / edit) ─── */
+.topbar{position:fixed;top:var(--hh);left:0;right:0;padding:9px 12px;display:none;align-items:center;gap:8px;z-index:900;box-shadow:0 3px 12px rgba(0,0,0,0.35);}
+.topbar.on{display:flex;}
+#drawBar{background:var(--earth);color:var(--cream);}
+#editBar{background:var(--blue);color:white;}
+#addPtBar{background:#2d6a4f;color:white;}
+.tb-name{font-family:'Playfair Display',serif;font-size:13px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tb-badge{font-size:11px;background:rgba(255,255,255,0.18);padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.tb-btns{display:flex;gap:5px;}
+.tb-btn{border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;padding:7px 10px;white-space:nowrap;transition:transform .1s;}
+.tb-btn:active{transform:scale(.93);}
+.tbb-confirm{background:var(--hay);color:var(--earth);}
+.tbb-confirm:disabled{background:#555;color:#777;cursor:not-allowed;}
+.tbb-undo{background:rgba(255,255,255,0.18);color:inherit;}
+.tbb-cancel{background:var(--danger);color:white;}
+.tbb-done{background:var(--hay);color:var(--blue);}
+
+/* ─── CROSSHAIR ───
+   Positioned by JS (updateCrosshairPos) at the pixel-centre of the visible
+   map area (below the top bars). transform:translate(-50%,-50%) then places
+   the SVG's geometric centre (30,30) on that exact pixel. */
+#crosshair{
+  position:fixed;
+  left:50%;          /* horizontal centre – never changes */
+  top:50%;           /* overridden by JS */
+  transform:translate(-50%,-50%);
+  z-index:500;pointer-events:none;display:none;
+}
+#crosshair.on{display:block;}
+
+/* ─── CROSSHAIR COORDS ─── */
+#xhCoords{
+  position:fixed;left:50%;transform:translateX(-50%);
+  background:rgba(61,43,31,0.92);backdrop-filter:blur(6px);
+  color:var(--cream);padding:5px 14px;border-radius:20px;
+  font-size:11px;z-index:600;display:none;white-space:nowrap;
+  font-variant-numeric:tabular-nums;top:calc(var(--hh) + 56px + 10px);
+}
+#xhCoords.on{display:block;}
+
+/* ─── ADD-POINT-HERE BUTTON ─── */
+#btnAddPt{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(28px + var(--sb));
+  z-index:600;background:var(--grass);color:white;
+  border:none;border-radius:50px;padding:17px 32px;
+  font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;
+  cursor:pointer;display:none;align-items:center;gap:9px;
+  box-shadow:0 6px 28px rgba(74,124,89,.65);white-space:nowrap;
+}
+#btnAddPt.on{display:flex;}
+#btnAddPt:active{transform:translateX(-50%) scale(.94);}
+
+/* ─── ADD-BETWEEN BUTTON (edit mode) ─── */
+#btnAddBetween{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(28px + var(--sb));
+  z-index:600;background:#2d6a4f;color:white;
+  border:none;border-radius:50px;padding:14px 24px;
+  font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;
+  cursor:pointer;display:none;align-items:center;gap:8px;
+  box-shadow:0 5px 22px rgba(45,106,79,.6);white-space:nowrap;
+}
+#btnAddBetween.on{display:flex;}
+#btnAddBetween:active{transform:translateX(-50%) scale(.94);}
+
+/* ─── GPS DOT (geoloc) ─── */
+.gps-dot-outer{
+  width:22px;height:22px;border-radius:50%;
+  background:rgba(26,119,255,.25);
+  display:flex;align-items:center;justify-content:center;
+  animation:gpsPulse 2s infinite;
+}
+.gps-dot-inner{width:10px;height:10px;background:#1a77ff;border-radius:50%;border:2px solid white;box-shadow:0 0 6px rgba(26,119,255,.8);}
+@keyframes gpsPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.6}}
+.gps-acc-circle{stroke:#1a77ff;fill:rgba(26,119,255,.12);stroke-width:1.5;}
+
+/* ─── FABs ─── */
+#fab{position:fixed;bottom:calc(18px + var(--sb));right:16px;z-index:600;width:58px;height:58px;background:var(--grass);color:white;border:none;border-radius:50%;font-size:27px;cursor:pointer;box-shadow:0 4px 20px rgba(74,124,89,.6);display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+#fab:active{transform:scale(.88);}
+#fabList{position:fixed;bottom:calc(18px + var(--sb));left:16px;z-index:600;width:58px;height:58px;background:var(--earth);color:var(--cream);border:2px solid rgba(255,255,255,.2);border-radius:50%;font-size:22px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+#fabList:active{transform:scale(.88);}
+
+/* ─── OVERLAY ─── */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:700;display:none;backdrop-filter:blur(2px);}
+#overlay.on{display:block;}
+
+/* ─── SHEETS ─── */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:800;background:var(--cream);border-radius:20px 20px 0 0;box-shadow:0 -4px 30px rgba(0,0,0,.25);transform:translateY(100%);transition:transform .35s cubic-bezier(.32,.72,0,1);max-height:88vh;display:flex;flex-direction:column;padding-bottom:var(--sb);}
+.sheet.open{transform:translateY(0);}
+.s-handle{width:40px;height:4px;background:rgba(61,43,31,.2);border-radius:4px;margin:10px auto 6px;flex-shrink:0;}
+.s-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--earth);padding:4px 20px 12px;border-bottom:1px solid rgba(61,43,31,.1);flex-shrink:0;}
+.s-body{padding:16px 20px;overflow-y:auto;flex:1;}
+.s-body::-webkit-scrollbar{display:none;}
+
+/* ─── FORM ─── */
+.fg{margin-bottom:14px;}
+.fg label{font-size:11px;font-weight:600;color:var(--bark);letter-spacing:.6px;text-transform:uppercase;display:block;margin-bottom:6px;}
+input[type=text]{width:100%;padding:12px 16px;border:1.5px solid rgba(61,43,31,.2);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:16px;background:white;color:var(--earth);transition:border-color .2s;outline:none;}
+input[type=text]:focus{border-color:var(--grass);}
+.cr{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.cswatch{width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;flex-shrink:0;transition:transform .15s,border-color .15s;}
+.cswatch.sel{border-color:var(--earth);transform:scale(1.2);}
+.ccwrap{width:36px;height:36px;border-radius:50%;border:2px dashed var(--bark);background:white;display:flex;align-items:center;justify-content:center;font-size:15px;position:relative;overflow:hidden;flex-shrink:0;}
+.ccwrap input[type=color]{position:absolute;opacity:0;width:100%;height:100%;cursor:pointer;}
+
+/* ─── BUTTONS ─── */
+.btn{border:none;border-radius:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s;padding:13px 18px;}
+.btn:active{transform:scale(.96);}
+.btn-grass{background:var(--grass);color:white;width:100%;}
+.btn-grass:disabled{background:#aaa;cursor:not-allowed;transform:none!important;}
+.btn-blue{background:var(--blue);color:white;}
+.btn-danger{background:var(--danger);color:white;}
+.btn-ghost{background:transparent;border:1.5px solid rgba(61,43,31,.25);color:var(--earth);}
+.btn-sm{padding:9px 13px;font-size:12px;border-radius:10px;}
+
+/* ─── PARC CARDS ─── */
+.pcard{background:white;border-radius:14px;padding:14px;margin-bottom:10px;border-left:5px solid;box-shadow:0 2px 10px var(--shadow);cursor:pointer;transition:transform .12s;}
+.pcard:active{transform:scale(.98);}
+.pname{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:var(--earth);}
+.pmeta{font-size:12px;color:#888;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.abadge{background:rgba(74,124,89,.12);color:var(--grass);font-size:11px;padding:2px 7px;border-radius:5px;font-weight:600;}
+
+/* ─── POINT ROWS ─── */
+.pt-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f5f2ed;}
+.pt-row:last-child{border-bottom:none;}
+.pt-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;}
+.pt-coords{font-variant-numeric:tabular-nums;font-size:11px;color:#555;flex:1;line-height:1.4;}
+.pt-copy{border:none;background:rgba(74,124,89,.12);color:var(--grass);border-radius:7px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;}
+.pt-copy:active{transform:scale(.92);}
+.pt-copy.ok{background:rgba(74,124,89,.25);color:var(--grass);}
+
+/* ─── PARC INFO SHEET ─── */
+.pi-title-row{display:flex;align-items:center;gap:10px;padding:4px 20px 12px;border-bottom:1px solid rgba(61,43,31,.1);flex-shrink:0;}
+.pi-back{background:none;border:none;color:var(--bark);font-size:26px;font-weight:300;cursor:pointer;padding:0 4px 0 0;line-height:1;flex-shrink:0;margin-left:-4px;}
+.pi-back:active{opacity:.5;}
+.pi-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;}
+.pi-name{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--earth);flex:1;}
+.pi-stats{display:flex;gap:10px;margin-bottom:14px;}
+.pi-stat{background:white;border-radius:10px;padding:10px 14px;flex:1;box-shadow:0 2px 6px var(--shadow);}
+.pi-sv{font-size:18px;font-weight:700;color:var(--earth);}
+.pi-sl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+
+/* ─── POINT POPUP (edit mode) ─── */
+.pp-wrap{text-align:center;min-width:170px;}
+.pp-title{font-weight:700;font-size:14px;color:var(--earth);margin-bottom:4px;}
+.pp-coords{font-size:11px;color:#888;margin-bottom:10px;font-variant-numeric:tabular-nums;line-height:1.5;}
+.pp-del{display:block;width:100%;border:none;border-radius:8px;background:rgba(224,85,85,.12);color:var(--danger);padding:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.pp-del:active{transform:scale(.95);}
+.pp-hint{font-size:10px;color:#aaa;margin-top:8px;}
+
+/* ─── NUMBERED MARKER ─── */
+.pt-icon{width:26px;height:26px;border-radius:50%;border:2.5px solid white;display:flex;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:white;box-shadow:0 2px 7px rgba(0,0,0,.38);}
+.pt-icon.drag{cursor:grab;box-shadow:0 3px 12px rgba(0,0,0,.45);}
+
+.empty{text-align:center;padding:40px 20px;color:#aaa;font-size:14px;}
+.empty .big{font-size:44px;margin-bottom:12px;}
+
+/* Leaflet overrides */
+.leaflet-popup-content-wrapper{border-radius:14px!important;font-family:'DM Sans',sans-serif!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important;}
+.leaflet-popup-content{margin:12px 14px!important;}
+
+/* ─── ZONE DE RÉFÉRENCE (non-éditable) ─── */
+.zone-tooltip{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-family: 'Playfair Display', serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #7b3f00 !important;
+  text-shadow: 0 1px 3px rgba(255,255,255,.95), 0 0 10px rgba(255,255,255,.7) !important;
+  white-space: nowrap !important;
+}
+.zone-tooltip::before{ display:none !important; }
+
+/* ─── SATELLITE TOGGLE ─── */
+#btnSat{
+  position:fixed;top:calc(var(--hh) + 10px);left:10px;
+  z-index:600;background:white;border:none;border-radius:10px;
+  width:44px;height:44px;cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;font-size:9px;font-weight:700;color:#444;
+  font-family:'DM Sans',sans-serif;transition:transform .15s;
+}
+#btnSat:active{transform:scale(.9);}
+#btnSat.sat{background:var(--earth);color:var(--cream);}
+#btnZoomZones{
+  position:fixed;top:calc(var(--hh) + 62px);left:10px;
+  z-index:600;background:white;border:none;border-radius:10px;
+  width:44px;height:44px;cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;font-size:9px;font-weight:700;color:#444;
+  font-family:'DM Sans',sans-serif;transition:transform .15s;
+}
+#btnZoomZones:active{transform:scale(.9);}
+#btnZoomZones .sat-icon{font-size:18px;line-height:1;}
+#installBanner{
+  position:fixed;bottom:calc(90px + var(--sb));left:12px;right:12px;
+  background:var(--earth);color:var(--cream);
+  border-radius:16px;padding:14px 16px;
+  display:none;align-items:center;gap:12px;
+  box-shadow:0 4px 24px rgba(0,0,0,.4);z-index:2000;
+  border:1px solid rgba(201,168,76,.3);
+}
+#installBanner.on{display:flex;}
+.ib-icon{font-size:28px;flex-shrink:0;}
+.ib-text{flex:1;}
+.ib-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--hay);}
+.ib-sub{font-size:11px;color:rgba(245,240,232,.7);margin-top:2px;line-height:1.4;}
+.ib-btns{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+.ib-install{background:var(--hay);color:var(--earth);border:none;border-radius:9px;padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.ib-dismiss{background:transparent;color:rgba(245,240,232,.5);border:none;font-size:11px;cursor:pointer;text-align:center;}
+
+/* ─── OFFLINE INDICATOR ─── */
+#offlineBadge{
+  position:fixed;top:calc(var(--hh) + 6px);left:50%;transform:translateX(-50%);
+  background:#c0392b;color:white;
+  padding:5px 14px;border-radius:20px;
+  font-size:11px;font-weight:600;z-index:1200;
+  display:none;align-items:center;gap:6px;white-space:nowrap;
+  box-shadow:0 2px 10px rgba(0,0,0,.3);
+}
+#offlineBadge.on{display:flex;}
+
+/* ─── SAVE INDICATOR ─── */
+#saveIndicator{
+  position:fixed;bottom:calc(90px + var(--sb));right:14px;
+  background:var(--grass);color:white;
+  padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;
+  z-index:2000;opacity:0;transition:opacity .3s;pointer-events:none;
+  box-shadow:0 2px 10px rgba(74,124,89,.5);
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo">🐑 Pâtur<span>Map</span></div>
+  <div id="searchWrap">
+    <input type="text" id="searchInput" placeholder="Adresse ou lat, lng…" autocomplete="off" autocorrect="off" spellcheck="false"/>
+    <button id="searchClear" onclick="clearSearch()">✕</button>
+  </div>
+  <button id="btnGps" onclick="locateMe()" title="Me localiser">📍</button>
+</div>
+
+<div id="searchResults"></div>
+<div id="map"></div>
+
+<!-- DRAW BAR -->
+<div id="drawBar" class="topbar">
+  <div id="drawName" class="tb-name">Tracé…</div>
+  <div id="drawCount" class="tb-badge">0 pt</div>
+  <div class="tb-btns">
+    <button class="tb-btn tbb-undo" onclick="undoLastPt()">↩</button>
+    <button class="tb-btn tbb-confirm" id="btnClose" onclick="closePolygon()" disabled>✅ Fermer</button>
+    <button class="tb-btn tbb-cancel" onclick="cancelDrawing()">✗</button>
+  </div>
+</div>
+
+<!-- EDIT BAR -->
+<div id="editBar" class="topbar">
+  <div id="editName" class="tb-name">Édition…</div>
+  <div id="editCount" class="tb-badge">0 pts</div>
+  <div class="tb-btns">
+    <button class="tb-btn" id="btnEditAddPt" style="background:rgba(255,255,255,0.18);color:white;font-size:15px;" onclick="startAddBetweenFromEdit()" title="Ajouter un point">＋</button>
+    <button class="tb-btn tbb-done" onclick="finishEdit()">✓ Terminer</button>
+  </div>
+</div>
+
+<!-- ADD-BETWEEN BAR (active when viseur en mode add-between) -->
+<div id="addPtBar" class="topbar">
+  <div id="addPtName" class="tb-name">Ajouter un point</div>
+  <div class="tb-btns">
+    <button class="tb-btn tbb-cancel" onclick="cancelAddBetween()">✗ Annuler</button>
+  </div>
+</div>
+
+<!-- CROSSHAIR — SVG 60×60, dot exact center (30,30), container centred by translate(-50%,-50%) -->
+<div id="crosshair">
+  <svg width="60" height="60" viewBox="0 0 60 60" fill="none"
+       style="filter:drop-shadow(0 0 5px rgba(0,0,0,.8))">
+    <circle cx="30" cy="30" r="13" stroke="white" stroke-width="2.5" fill="rgba(0,0,0,.18)"/>
+    <circle cx="30" cy="30" r="3.5" fill="white"/>
+    <line x1="30" y1="3"  x2="30" y2="17" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="30" y1="43" x2="30" y2="57" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="3"  y1="30" x2="17" y2="30" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="43" y1="30" x2="57" y2="30" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>
+</div>
+<div id="xhCoords"></div>
+
+<!-- MAIN ACTION BUTTON (draw mode) -->
+<button id="btnAddPt" onclick="addPtAtCenter()">📍 Placer un point ici</button>
+
+<!-- ADD-BETWEEN ACTION BUTTON -->
+<button id="btnAddBetween" onclick="confirmAddBetween()">➕ Insérer ici entre les voisins</button>
+
+<!-- SATELLITE TOGGLE -->
+<button id="btnSat" onclick="toggleSat()" title="Vue satellite">
+  <span class="sat-icon">🛰️</span>
+  <span id="satLabel">Satellite</span>
+</button>
+
+<!-- ZOOM ZONES -->
+<button id="btnZoomZones" onclick="zoomToZones()" title="Voir les zones de référence">
+  <span class="sat-icon">📍</span>
+  <span>Zones</span>
+</button>
+
+<!-- FABs -->
+<button id="fab"     onclick="openNewParcSheet()">＋</button>
+<button id="fabList" onclick="openListSheet()">🌿</button>
+
+<!-- OFFLINE BADGE -->
+<div id="offlineBadge">📡 Hors ligne</div>
+
+<!-- SAVE INDICATOR -->
+<div id="saveIndicator">💾 Sauvegardé</div>
+
+<!-- INSTALL BANNER (shown when PWA is installable) -->
+<div id="installBanner">
+  <div class="ib-icon">🐑</div>
+  <div class="ib-text">
+    <div class="ib-title">Installer PâturMap</div>
+    <div class="ib-sub">Accès rapide depuis votre écran d'accueil, fonctionne hors ligne</div>
+  </div>
+  <div class="ib-btns">
+    <button class="ib-install" id="btnInstall">Installer</button>
+    <button class="ib-dismiss" id="btnDismiss">Plus tard</button>
+  </div>
+</div>
+
+<div id="overlay" onclick="closeAllSheets()"></div>
+
+<!-- SHEET: NOUVEAU PARC -->
+<div class="sheet" id="newParcSheet">
+  <div class="s-handle"></div>
+  <div class="s-title">✨ Nouveau parc</div>
+  <div class="s-body">
+    <div class="fg"><label>Nom du parc</label>
+      <input type="text" id="parcName" placeholder="Ex: Pré du moulin…" autocomplete="off"/>
+    </div>
+    <div class="fg"><label>Couleur</label>
+      <div class="cr" id="colorRow">
+        <div class="cswatch sel" style="background:#4a7c59" data-color="#4a7c59"></div>
+        <div class="cswatch" style="background:#e05555" data-color="#e05555"></div>
+        <div class="cswatch" style="background:#4a90d9" data-color="#4a90d9"></div>
+        <div class="cswatch" style="background:#c9a84c" data-color="#c9a84c"></div>
+        <div class="cswatch" style="background:#9b59b6" data-color="#9b59b6"></div>
+        <div class="cswatch" style="background:#e67e22" data-color="#e67e22"></div>
+        <div class="cswatch" style="background:#1abc9c" data-color="#1abc9c"></div>
+        <div class="cswatch" style="background:#e91e63" data-color="#e91e63"></div>
+        <div class="ccwrap">🎨<input type="color" id="customColor" value="#4a7c59"></div>
+      </div>
+    </div>
+    <button class="btn btn-grass" onclick="startDrawing()">✏️ Commencer le tracé</button>
+  </div>
+</div>
+
+<!-- SHEET: LISTE -->
+<div class="sheet" id="listSheet">
+  <div class="s-handle"></div>
+  <div class="s-title" id="listTitle">🌿 Mes parcs</div>
+  <div class="s-body" id="parcsList"></div>
+</div>
+
+<!-- SHEET: INFO PARC -->
+<div class="sheet" id="infoSheet">
+  <div class="s-handle"></div>
+  <div class="pi-title-row">
+    <button class="pi-back" onclick="closeAllSheets()" title="Retour à la carte">‹</button>
+    <div class="pi-dot" id="piDot"></div>
+    <div class="pi-name" id="piName"></div>
+  </div>
+  <div class="s-body" id="piBody"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+let parcs=[], parcId=0;
+let drawing=false, curPts=[], curMarkers=[], curLine=null, selColor='#4a7c59';
+let editingId=null;
+let addBetweenMode=false, addBetweenParcId=null;
+let gpsMarker=null, gpsCircle=null, gpsWatch=null;
+let searchTimer=null;
+
+// ══════════════════════════════════════════════════════
+//  ZONES DE RÉFÉRENCE — définies ici, chargées après la carte
+// ══════════════════════════════════════════════════════
+const REFERENCE_ZONES = [
+  {
+    name: 'La ferme de MR GROOT',
+    color: '#7b3f00',
+    fillColor: '#c8860a',
+    points: [
+      {lat:43.815921, lng:4.026762},
+      {lat:43.815471, lng:4.026283},
+      {lat:43.814955, lng:4.025878},
+      {lat:43.814688, lng:4.026510},
+      {lat:43.815144, lng:4.027673}
+    ]
+  }
+];
+
+// ══════════════════════════════════════════════════════
+//  MAP
+// ══════════════════════════════════════════════════════
+const map=L.map('map',{zoomControl:false}).setView([43.6,3.8],14);
+
+const layerOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap', maxZoom:19
+});
+const layerSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+  attribution:'© Esri, Maxar, Earthstar Geographics',maxZoom:19
+});
+
+let satMode = false;
+layerOSM.addTo(map);
+
+function zoomToZones(){
+  if(!REFERENCE_ZONES.length) return;
+  const allPts = REFERENCE_ZONES.flatMap(z=>z.points.map(p=>[p.lat,p.lng]));
+  map.fitBounds(L.latLngBounds(allPts), {padding:[80,80]});
+}
+
+function toggleSat(){
+  satMode = !satMode;
+  if(satMode){
+    map.removeLayer(layerOSM);
+    layerSat.addTo(map);
+  } else {
+    map.removeLayer(layerSat);
+    layerOSM.addTo(map);
+  }
+  document.getElementById('btnSat').classList.toggle('sat', satMode);
+  document.getElementById('satLabel').textContent = satMode ? 'Carte' : 'Satellite';
+}
+
+L.control.zoom({position:'topright'}).addTo(map);
+
+map.on('move',()=>{
+  if(!drawing && !addBetweenMode) return;
+  const ll=getXhairLatLng();
+  document.getElementById('xhCoords').textContent=`${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;
+});
+map.on('click',()=>hideSearch());
+window.addEventListener('resize',()=>{ if(drawing||addBetweenMode) updateCrosshairPos(); });
+
+// ── Returns the map LatLng under the crosshair dot (pixel-exact) ──
+// The crosshair is centred on the visible map area, NOT on the full viewport.
+// Top bars (header 56px + active topbar ~46px) push the map centre down,
+// so we compute the crosshair pixel position and convert it to LatLng.
+function getXhairLatLng(){
+  const mapEl=document.getElementById('map');
+  const rect=mapEl.getBoundingClientRect(); // position of map container in viewport
+  // Pixel centre of the visible map rectangle (in map-container coordinates)
+  const cx=rect.width/2;
+  const cy=rect.height/2;
+  return map.containerPointToLatLng(L.point(cx,cy));
+}
+
+// Reposition the crosshair div so its dot sits on the true map centre
+function updateCrosshairPos(){
+  const mapEl=document.getElementById('map');
+  const rect=mapEl.getBoundingClientRect();
+  const xh=document.getElementById('crosshair');
+  // Centre of map container in viewport-fixed coords
+  const cx=rect.left+rect.width/2;
+  const cy=rect.top+rect.height/2;
+  xh.style.top=cy+'px';
+  xh.style.left=cx+'px';
+  // Also update coords bubble vertical position (just below the top bar)
+  document.getElementById('xhCoords').style.top=(rect.top+8)+'px';
+}
+
+// ══════════════════════════════════════════════════════
+//  GEOLOCATION
+// ══════════════════════════════════════════════════════
+function locateMe(){
+  const btn=document.getElementById('btnGps');
+  if(!navigator.geolocation){
+    showGpsDialog('❌ Géolocalisation non disponible sur cet appareil.');
+    return;
+  }
+  // Appeler directement watchPosition : le navigateur affiche SA popup
+  // d'autorisation native. Pas besoin de passer par navigator.permissions.
+  startGpsWatch(btn);
+}
+
+function showGpsDialog(msg){
+  // Supprimer toute modale existante
+  const old=document.getElementById('gpsDialog');
+  if(old) old.remove();
+
+  const d=document.createElement('div');
+  d.id='gpsDialog';
+  d.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+  d.innerHTML=`
+    <div style="background:var(--cream);border-radius:18px;padding:22px 20px;max-width:320px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.3);">
+      <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--earth);margin-bottom:12px">📍 Géolocalisation</div>
+      <div style="font-size:13px;color:var(--bark);line-height:1.6;white-space:pre-wrap">${msg}</div>
+      <button id="gpsDialogClose" style="margin-top:16px;width:100%;padding:12px;background:var(--grass);color:white;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Compris</button>
+    </div>`;
+  document.body.appendChild(d);
+  // Attacher l'événement en JS pur — fiable sur tous les navigateurs mobiles
+  document.getElementById('gpsDialogClose').addEventListener('click', ()=>{
+    const el=document.getElementById('gpsDialog');
+    if(el) el.remove();
+  });
+}
+
+function startGpsWatch(btn){
+  btn.classList.add('locating');
+  if(gpsWatch!==null){ navigator.geolocation.clearWatch(gpsWatch); gpsWatch=null; }
+
+  let firstFix = true; // centrer uniquement sur la toute première position reçue
+
+  gpsWatch = navigator.geolocation.watchPosition(
+    pos => {
+      updateGpsDisplay(btn, pos, firstFix);
+      firstFix = false; // les positions suivantes ne recentrent plus
+    },
+    err => {
+      btn.classList.remove('locating');
+      const msgs={
+        1:'🔒 Permission refusée.\n\nActivez la localisation dans les réglages de votre navigateur ou appareil.',
+        2:'📡 Position indisponible. Vérifiez que le GPS est activé.',
+        3:'⏱ Délai dépassé. Réessayez dans un endroit avec meilleure réception.'
+      };
+      showGpsDialog(msgs[err.code]||`Erreur : ${err.message}`);
+    },
+    {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+  );
+}
+
+function updateGpsDisplay(btn, pos, centreMap=false){
+  btn.classList.remove('locating');
+  btn.title='Position active';
+  const lat=pos.coords.latitude, lng=pos.coords.longitude, acc=pos.coords.accuracy;
+  const ll=L.latLng(lat,lng);
+  if(gpsMarker) map.removeLayer(gpsMarker);
+  if(gpsCircle) map.removeLayer(gpsCircle);
+  gpsCircle=L.circle(ll,{radius:acc,className:'gps-acc-circle',interactive:false}).addTo(map);
+  const icon=L.divIcon({
+    className:'',
+    html:'<div class="gps-dot-outer"><div class="gps-dot-inner"></div></div>',
+    iconSize:[22,22],iconAnchor:[11,11]
+  });
+  gpsMarker=L.marker(ll,{icon,zIndexOffset:1000}).addTo(map);
+  gpsMarker.bindPopup(`<b>Ma position</b><br><span style="font-size:11px;color:#666;font-variant-numeric:tabular-nums">${lat.toFixed(6)}, ${lng.toFixed(6)}<br>Précision : ±${Math.round(acc)} m</span>`);
+  gpsMarker.on('click',()=>gpsMarker.openPopup());
+  if(centreMap) map.setView(ll,17);
+}
+
+// ══════════════════════════════════════════════════════
+//  SEARCH
+// ══════════════════════════════════════════════════════
+const si=document.getElementById('searchInput'), sr=document.getElementById('searchResults');
+si.addEventListener('input',()=>{
+  const v=si.value.trim();
+  document.getElementById('searchClear').classList.toggle('on',v.length>0);
+  clearTimeout(searchTimer);
+  if(!v){hideSearch();return;}
+  const m=v.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+  if(m){
+    const la=parseFloat(m[1]),lo=parseFloat(m[2]);
+    if(la>=-90&&la<=90&&lo>=-180&&lo<=180){
+      showSR([{main:`📍 ${la.toFixed(6)}, ${lo.toFixed(6)}`,sub:'Coordonnées GPS',la,lo,z:17}]);return;
+    }
+  }
+  searchTimer=setTimeout(()=>geocode(v),500);
+});
+si.addEventListener('keydown',e=>{if(e.key==='Escape')clearSearch();if(e.key==='Enter'){const f=sr.querySelector('.sr-item');if(f)f.click();}});
+async function geocode(q){
+  sr.innerHTML='<div class="sr-loading">Recherche…</div>';sr.classList.add('on');
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5`,{headers:{'Accept-Language':'fr'}});
+    const d=await res.json();
+    if(!d.length){sr.innerHTML='<div class="sr-loading">Aucun résultat</div>';return;}
+    showSR(d.map(x=>({main:x.display_name.split(',')[0],sub:x.display_name.split(',').slice(1,3).join(',').trim(),la:parseFloat(x.lat),lo:parseFloat(x.lon),z:16})));
+  }catch{sr.innerHTML='<div class="sr-loading">Erreur réseau</div>';}
+}
+function showSR(items){
+  sr.innerHTML=items.map(it=>`<div class="sr-item" onclick="goTo(${it.la},${it.lo},${it.z})"><div class="sr-main">${it.main}</div><div class="sr-sub">${it.sub}</div></div>`).join('');
+  sr.classList.add('on');
+}
+function hideSearch(){sr.classList.remove('on');}
+function goTo(la,lo,z){map.setView([la,lo],z);hideSearch();si.blur();}
+function clearSearch(){si.value='';document.getElementById('searchClear').classList.remove('on');hideSearch();}
+
+// ══════════════════════════════════════════════════════
+//  COLORS
+// ══════════════════════════════════════════════════════
+document.querySelectorAll('.cswatch').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('.cswatch').forEach(s=>s.classList.remove('sel'));
+    el.classList.add('sel'); selColor=el.dataset.color;
+    document.getElementById('customColor').value=selColor;
+  });
+});
+document.getElementById('customColor').addEventListener('input',e=>{
+  selColor=e.target.value;
+  document.querySelectorAll('.cswatch').forEach(s=>s.classList.remove('sel'));
+});
+
+// ══════════════════════════════════════════════════════
+//  SHEETS
+// ══════════════════════════════════════════════════════
+const SHEETS=['newParcSheet','listSheet','infoSheet'];
+function openSheet(id){
+  SHEETS.forEach(s=>document.getElementById(s).classList.remove('open'));
+  document.getElementById(id).classList.add('open');
+  document.getElementById('overlay').classList.add('on');
+}
+function closeAllSheets(){
+  SHEETS.forEach(s=>document.getElementById(s).classList.remove('open'));
+  document.getElementById('overlay').classList.remove('on');
+}
+function openNewParcSheet(){if(editingId!==null||addBetweenMode)return;openSheet('newParcSheet');}
+function openListSheet(){if(editingId!==null||addBetweenMode)return;renderList();openSheet('listSheet');}
+
+// ══════════════════════════════════════════════════════
+//  MARKER FACTORY — numbered, draggable option
+// ══════════════════════════════════════════════════════
+function makeMarker(latlng,num,color,draggable=false){
+  const icon=L.divIcon({
+    className:'',
+    html:`<div class="pt-icon${draggable?' drag':''}" style="background:${color}">${num}</div>`,
+    iconSize:[26,26],
+    iconAnchor:[13,13]
+  });
+  return L.marker([latlng.lat,latlng.lng],{icon,draggable});
+}
+
+// ══════════════════════════════════════════════════════
+//  DRAW MODE
+// ══════════════════════════════════════════════════════
+function showXhair(on){
+  updateCrosshairPos();
+  document.getElementById('crosshair').classList.toggle('on',on);
+  document.getElementById('xhCoords').classList.toggle('on',on);
+  if(on){const ll=getXhairLatLng();document.getElementById('xhCoords').textContent=`${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;}
+}
+
+function startDrawing(){
+  drawing=true; curPts=[]; curMarkers=[];
+  if(curLine){map.removeLayer(curLine);curLine=null;}
+  curLine=L.polyline([],{color:selColor,weight:3,dashArray:'7 5',opacity:.9}).addTo(map);
+  const name=document.getElementById('parcName').value.trim()||`Parc ${parcId+1}`;
+  document.getElementById('drawName').textContent=`✏️ ${name}`;
+  document.getElementById('drawBar').classList.add('on');
+  showXhair(true);
+  document.getElementById('btnAddPt').classList.add('on');
+  document.getElementById('btnClose').disabled=true;
+  closeAllSheets();
+  updDrawCount();
+}
+
+function addPtAtCenter(){addDrawPt(getXhairLatLng());}
+
+function addDrawPt(ll){
+  curPts.push(ll);
+  const m=makeMarker(ll,curPts.length,selColor,false);
+  m.addTo(map);curMarkers.push(m);
+  refreshDrawLine();
+  document.getElementById('btnClose').disabled=curPts.length<3;
+  updDrawCount();
+}
+
+function undoLastPt(){
+  if(!curPts.length)return;
+  curPts.pop();const m=curMarkers.pop();if(m)map.removeLayer(m);
+  refreshDrawLine();
+  document.getElementById('btnClose').disabled=curPts.length<3;
+  updDrawCount();
+}
+
+function refreshDrawLine(){
+  const pts=curPts.map(p=>[p.lat,p.lng]);
+  curLine.setLatLngs(pts.length>=2?[...pts,pts[0]]:pts);
+}
+
+function updDrawCount(){
+  const n=curPts.length;
+  document.getElementById('drawCount').textContent=`${n} pt${n>1?'s':''} ${n>=3?'✓':''}`;
+}
+
+function closePolygon(){
+  if(curPts.length<3)return;
+  const name=document.getElementById('parcName').value.trim()||`Parc ${parcId+1}`;
+  const color=selColor, id=++parcId, pts=[...curPts];
+  cleanDraw();
+  const polygon=L.polygon(pts.map(p=>[p.lat,p.lng]),{color,fillColor:color,fillOpacity:.22,weight:2.5}).addTo(map);
+  const area=calcArea(pts);
+  const parc={id,name,color,polygon,points:pts,area,ptMarkers:[]};
+  parcs.push(parc);
+  buildMarkers(parc,false);
+  bindPopup(parc);
+  document.getElementById('parcName').value='';
+  map.fitBounds(polygon.getBounds(),{padding:[60,60]});
+  setTimeout(()=>openInfoSheet(id),450);
+}
+
+function cancelDrawing(){cleanDraw();}
+
+function cleanDraw(){
+  drawing=false;
+  curMarkers.forEach(m=>map.removeLayer(m));curMarkers=[];curPts=[];
+  if(curLine){map.removeLayer(curLine);curLine=null;}
+  document.getElementById('drawBar').classList.remove('on');
+  showXhair(false);
+  document.getElementById('btnAddPt').classList.remove('on');
+}
+
+// ══════════════════════════════════════════════════════
+//  PARC MARKERS
+// ══════════════════════════════════════════════════════
+function buildMarkers(parc,editable){
+  parc.ptMarkers.forEach(m=>map.removeLayer(m));
+  parc.ptMarkers=[];
+  parc.points.forEach((pt,i)=>{
+    const m=makeMarker(pt,i+1,parc.color,editable);
+    m.addTo(map);
+    if(editable){
+      m.on('dragend',e=>{
+        parc.points[i]=e.target.getLatLng();
+        rebuildPolygon(parc);updEditCount(parc);
+      });
+      m.on('click',e=>{L.DomEvent.stopPropagation(e);showPtPopup(parc,i,m);});
+    }
+    parc.ptMarkers.push(m);
+  });
+}
+
+function showPtPopup(parc,idx,marker){
+  const pt=parc.points[idx];
+  const latS=pt.lat.toFixed(6), lngS=pt.lng.toFixed(6);
+  const txt=`${latS}, ${lngS}`;
+  // Build popup HTML — use data attributes to avoid closure issues with onclick in innerHTML
+  const html=`
+    <div class="pp-wrap">
+      <div class="pp-title">Point ${idx+1} / ${parc.points.length}</div>
+      <div class="pp-coords">${latS}<br>${lngS}</div>
+      <button class="pp-del" id="pp-del-btn">🗑️ Supprimer ce point</button>
+      <div class="pp-hint">Glissez le marqueur pour déplacer</div>
+    </div>`;
+  const popup=L.popup({closeButton:true,offset:[0,-14],maxWidth:210})
+    .setLatLng(pt).setContent(html).openOn(map);
+
+  // Attach events after popup is in DOM
+  setTimeout(()=>{
+    const delBtn=document.getElementById('pp-del-btn');
+    if(delBtn) delBtn.addEventListener('click',()=>{map.closePopup();deleteEditPt(parc.id,idx);});
+  },50);
+}
+
+function deleteEditPt(parcId,idx){
+  const parc=parcs.find(x=>x.id===parcId);if(!parc)return;
+  if(parc.points.length<=3){alert('Un parc doit avoir au moins 3 points.');return;}
+  parc.points.splice(idx,1);
+  rebuildPolygon(parc);
+  buildMarkers(parc,true);
+  updEditCount(parc);
+}
+
+function rebuildPolygon(parc){
+  parc.polygon.setLatLngs(parc.points.map(p=>[p.lat,p.lng]));
+  parc.area=calcArea(parc.points);
+  bindPopup(parc);
+}
+
+function bindPopup(parc){
+  parc.polygon.off('click');parc.polygon.unbindPopup();
+  parc.polygon.bindPopup(`
+    <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:${parc.color};margin-bottom:5px">${parc.name}</div>
+    <div style="font-size:12px;color:#666;margin-bottom:6px">🌿 ${formatArea(parc.area)} &nbsp; 📍 ${parc.points.length} points</div>
+    <div style="font-size:12px;color:${parc.color};font-weight:600;cursor:pointer" onclick="map.closePopup();openInfoSheet(${parc.id})">▶ Voir les détails</div>
+  `);
+  parc.polygon.on('click',()=>parc.polygon.openPopup());
+}
+
+// ══════════════════════════════════════════════════════
+//  EDIT MODE
+// ══════════════════════════════════════════════════════
+function startEdit(id){
+  if(editingId!==null)finishEdit();
+  editingId=id;
+  const parc=parcs.find(x=>x.id===id);if(!parc)return;
+  buildMarkers(parc,true);
+  document.getElementById('editName').textContent=`✏️ ${parc.name}`;
+  updEditCount(parc);
+  document.getElementById('editBar').classList.add('on');
+  document.getElementById('fab').style.display='none';
+  document.getElementById('fabList').style.display='none';
+  closeAllSheets();
+}
+
+function updEditCount(parc){
+  document.getElementById('editCount').textContent=`${parc.points.length} pts`;
+}
+
+function finishEdit(){
+  if(editingId===null)return;
+  const parc=parcs.find(x=>x.id===editingId);
+  editingId=null;
+  if(parc){rebuildPolygon(parc);buildMarkers(parc,false);}
+  document.getElementById('editBar').classList.remove('on');
+  document.getElementById('fab').style.display='';
+  document.getElementById('fabList').style.display='';
+  map.closePopup();
+}
+
+// ══════════════════════════════════════════════════════
+//  ADD POINT BETWEEN NEAREST NEIGHBOURS
+// ══════════════════════════════════════════════════════
+function startAddBetween(id){
+  finishEdit();
+  addBetweenMode=true; addBetweenParcId=id;
+  const parc=parcs.find(x=>x.id===id);
+  document.getElementById('addPtName').textContent=`➕ ${parc.name}`;
+  document.getElementById('addPtBar').classList.add('on');
+  showXhair(true);
+  document.getElementById('btnAddBetween').classList.add('on');
+  document.getElementById('fab').style.display='none';
+  document.getElementById('fabList').style.display='none';
+  closeAllSheets();
+}
+
+// Called from the ＋ button inside the edit bar — stays in edit mode
+function startAddBetweenFromEdit(){
+  if(editingId===null) return;
+  addBetweenMode=true; addBetweenParcId=editingId;
+  const parc=parcs.find(x=>x.id===editingId);
+  // Hide edit bar, show add-between bar
+  document.getElementById('editBar').classList.remove('on');
+  document.getElementById('addPtName').textContent=`➕ ${parc.name}`;
+  document.getElementById('addPtBar').classList.add('on');
+  showXhair(true);
+  document.getElementById('btnAddBetween').classList.add('on');
+}
+
+function cancelAddBetween(){
+  const wasEditing = editingId !== null;
+  addBetweenMode=false;
+  document.getElementById('addPtBar').classList.remove('on');
+  showXhair(false);
+  document.getElementById('btnAddBetween').classList.remove('on');
+  if(wasEditing){
+    // Return to edit mode
+    const parc=parcs.find(x=>x.id===editingId);
+    document.getElementById('editBar').classList.add('on');
+    if(parc) updEditCount(parc);
+  } else {
+    addBetweenParcId=null;
+    document.getElementById('fab').style.display='';
+    document.getElementById('fabList').style.display='';
+  }
+}
+
+function confirmAddBetween(){
+  const newPt=getXhairLatLng();
+  const parc=parcs.find(x=>x.id===addBetweenParcId);if(!parc)return;
+
+  // Find the segment that minimises distance from newPt to segment
+  const pts=parc.points, n=pts.length;
+  let bestIdx=0, bestDist=Infinity;
+  for(let i=0;i<n;i++){
+    const a=pts[i], b=pts[(i+1)%n];
+    const d=ptSegDist(newPt,a,b);
+    if(d<bestDist){bestDist=d;bestIdx=i;}
+  }
+  parc.points.splice(bestIdx+1,0,newPt);
+  rebuildPolygon(parc);
+
+  const wasEditing = editingId !== null;
+  if(wasEditing){
+    // Stay in edit mode with rebuilt draggable markers
+    buildMarkers(parc,true);
+    cancelAddBetween();
+  } else {
+    buildMarkers(parc,false);
+    cancelAddBetween();
+    openInfoSheet(parc.id);
+  }
+}
+
+// Point-to-segment distance (Leaflet LatLng objects)
+function ptSegDist(p,a,b){
+  // Convert to flat coords (approximate, OK for short segments)
+  const R=111320; // m per degree lat
+  const px=(p.lng-a.lng)*R*Math.cos(a.lat*Math.PI/180), py=(p.lat-a.lat)*R;
+  const bx=(b.lng-a.lng)*R*Math.cos(a.lat*Math.PI/180), by=(b.lat-a.lat)*R;
+  const len2=bx*bx+by*by;
+  if(len2===0) return Math.hypot(px,py);
+  let t=Math.max(0,Math.min(1,(px*bx+py*by)/len2));
+  return Math.hypot(px-t*bx, py-t*by);
+}
+
+// ══════════════════════════════════════════════════════
+//  INFO SHEET
+// ══════════════════════════════════════════════════════
+function openInfoSheet(id){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  map.closePopup();
+  document.getElementById('piDot').style.background=p.color;
+  document.getElementById('piName').textContent=p.name;
+  const ctr=p.polygon.getBounds().getCenter();
+  document.getElementById('piBody').innerHTML=`
+    <div class="pi-stats">
+      <div class="pi-stat"><div class="pi-sv">${formatArea(p.area)}</div><div class="pi-sl">Surface</div></div>
+      <div class="pi-stat"><div class="pi-sv">${p.points.length}</div><div class="pi-sl">Points</div></div>
+    </div>
+    <div style="font-size:11px;color:#888;margin-bottom:14px">Centre : ${ctr.lat.toFixed(5)}, ${ctr.lng.toFixed(5)}</div>
+    <div style="display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="renameParc(${p.id})">✏️ Renommer</button>
+      <button class="btn btn-blue btn-sm" style="flex:1" onclick="closeAllSheets();startEdit(${p.id})">🔧 Modifier</button>
+      <button class="btn btn-sm" style="flex:1;background:#2d6a4f;color:white" onclick="closeAllSheets();startAddBetween(${p.id})">➕ Point</button>
+      <button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteParc(${p.id})">🗑️</button>
+    </div>
+    <div id="colorPickerWrap-${p.id}" style="display:none;margin-bottom:14px;background:white;border-radius:12px;padding:12px 14px;box-shadow:0 2px 8px var(--shadow)">
+      <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Couleur du parc</div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+        ${['#4a7c59','#e05555','#4a90d9','#c9a84c','#9b59b6','#e67e22','#1abc9c','#e91e63'].map(c=>`
+          <div onclick="recolorParc(${p.id},'${c}')" style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid ${c===p.color?'var(--earth)':'transparent'};cursor:pointer;transition:transform .15s;flex-shrink:0" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></div>`).join('')}
+        <div style="width:32px;height:32px;border-radius:50%;border:2px dashed var(--bark);background:white;display:flex;align-items:center;justify-content:center;font-size:14px;position:relative;overflow:hidden;flex-shrink:0" title="Couleur personnalisée">
+          🎨<input type="color" value="${p.color}" style="position:absolute;opacity:0;width:100%;height:100%;cursor:pointer" oninput="recolorParc(${p.id},this.value)">
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:14px" id="btnToggleColor-${p.id}" onclick="toggleColorPicker(${p.id})">🎨 Changer la couleur</button>
+    <div style="font-size:11px;font-weight:700;color:var(--bark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Points GPS</div>
+    ${p.points.map((pt,i)=>`
+      <div class="pt-row">
+        <div class="pt-num" style="background:${p.color}">${i+1}</div>
+        <div class="pt-coords">${pt.lat.toFixed(6)}<br>${pt.lng.toFixed(6)}</div>
+        <button class="pt-copy" data-lat="${pt.lat}" data-lng="${pt.lng}">📋 Copier</button>
+      </div>`).join('')}
+  `;
+  // Attach copy handlers in JS (no inline onclick → clipboard works)
+  document.querySelectorAll('#piBody .pt-copy').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const txt=`${btn.dataset.lat}, ${btn.dataset.lng}`;
+      copyText(txt,btn);
+    });
+  });
+  openSheet('infoSheet');
+}
+
+// ══════════════════════════════════════════════════════
+//  COPY — robust method that works in sheets/popups
+// ══════════════════════════════════════════════════════
+function copyText(txt,btn){
+  const orig=btn.textContent;
+  const ok=()=>{btn.textContent='✓ Copié!';btn.classList.add('ok');setTimeout(()=>{btn.textContent=orig;btn.classList.remove('ok');},1800);};
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(txt).then(ok).catch(()=>fallbackCopy(txt,btn,ok));
+  } else {
+    fallbackCopy(txt,btn,ok);
+  }
+}
+function fallbackCopy(txt,btn,ok){
+  // Create a temporary textarea outside any containing element that might clip
+  const ta=document.createElement('textarea');
+  ta.value=txt;
+  ta.style.cssText='position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try{document.execCommand('copy');ok();}catch(e){alert('Coordonnées: '+txt);}
+  document.body.removeChild(ta);
+}
+
+// ══════════════════════════════════════════════════════
+//  PARCS LIST
+// ══════════════════════════════════════════════════════
+function renderList(){
+  const el=document.getElementById('parcsList');
+  document.getElementById('listTitle').textContent=`🌿 Mes parcs (${parcs.length})`;
+  if(!parcs.length){
+    el.innerHTML='<div class="empty"><div class="big">🐑</div>Aucun parc créé.<br>Appuyez sur <b>＋</b> pour commencer !</div>';return;
+  }
+  el.innerHTML=parcs.map(p=>`
+    <div class="pcard" style="border-left-color:${p.color}" onclick="closeAllSheets();setTimeout(()=>{map.fitBounds(parcs.find(x=>x.id===${p.id}).polygon.getBounds(),{padding:[60,60]});openInfoSheet(${p.id});},300)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:12px;height:12px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
+        <div class="pname">${p.name}</div>
+      </div>
+      <div class="pmeta" style="margin-top:6px">
+        <span class="abadge">${formatArea(p.area)}</span>
+        <span>${p.points.length} points</span>
+      </div>
+    </div>`).join('');
+}
+
+function toggleColorPicker(id){
+  const wrap=document.getElementById(`colorPickerWrap-${id}`);
+  const btn=document.getElementById(`btnToggleColor-${id}`);
+  const open=wrap.style.display==='none';
+  wrap.style.display=open?'block':'none';
+  btn.textContent=open?'✕ Fermer':'🎨 Changer la couleur';
+}
+
+function recolorParc(id, color){
+  const p=parcs.find(x=>x.id===id); if(!p) return;
+  p.color=color;
+  // Update polygon
+  p.polygon.setStyle({color, fillColor:color});
+  // Update markers
+  buildMarkers(p, false);
+  // Update popup
+  bindPopup(p);
+  // Save
+  saveParcs();
+  // Refresh the sheet to reflect new color
+  openInfoSheet(id);
+}
+
+function renameParc(id){
+  const p=parcs.find(x=>x.id===id);if(!p)return;
+  const n=prompt('Nouveau nom :',p.name);if(n===null)return;
+  p.name=n.trim()||p.name;bindPopup(p);openInfoSheet(id);
+}
+
+function deleteParc(id){
+  const idx=parcs.findIndex(x=>x.id===id);if(idx===-1)return;
+  if(!confirm(`Supprimer "${parcs[idx].name}" ?`))return;
+  const p=parcs[idx];
+  map.removeLayer(p.polygon);p.ptMarkers.forEach(m=>map.removeLayer(m));
+  parcs.splice(idx,1);closeAllSheets();
+}
+
+// ══════════════════════════════════════════════════════
+//  GEOMETRY
+// ══════════════════════════════════════════════════════
+function calcArea(pts){
+  if(pts.length<3)return 0;
+  const R=6371000;let a=0;
+  for(let i=0;i<pts.length;i++){
+    const j=(i+1)%pts.length;
+    const xi=pts[i].lng*Math.PI/180*R*Math.cos(pts[i].lat*Math.PI/180),yi=pts[i].lat*Math.PI/180*R;
+    const xj=pts[j].lng*Math.PI/180*R*Math.cos(pts[j].lat*Math.PI/180),yj=pts[j].lat*Math.PI/180*R;
+    a+=xi*yj-xj*yi;
+  }
+  return Math.abs(a/2);
+}
+function formatArea(m2){return m2>=10000?`${(m2/10000).toFixed(2)} ha`:`${Math.round(m2)} m²`;}
+
+// ══════════════════════════════════════════════════════
+//  PERSISTANCE — localStorage
+// ══════════════════════════════════════════════════════
+const STORAGE_KEY = 'paturmap_parcs_v1';
+
+function saveParcs(){
+  try {
+    const data = parcs.map(p=>({
+      id:    p.id,
+      name:  p.name,
+      color: p.color,
+      area:  p.area,
+      points: p.points.map(pt=>({lat:pt.lat, lng:pt.lng}))
+    }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({parcId, data}));
+    flashSave();
+  } catch(e){ console.warn('Save failed', e); }
+}
+
+function loadParcs(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const {parcId:savedId, data} = JSON.parse(raw);
+    parcId = savedId || 0;
+    data.forEach(d=>{
+      const pts = d.points.map(p=>L.latLng(p.lat, p.lng));
+      const area = d.area || calcArea(pts);
+      const polygon = L.polygon(pts.map(p=>[p.lat,p.lng]),{
+        color:d.color, fillColor:d.color, fillOpacity:.22, weight:2.5
+      }).addTo(map);
+      const parc = {id:d.id, name:d.name, color:d.color, polygon, points:pts, area, ptMarkers:[]};
+      parcs.push(parc);
+      buildMarkers(parc, false);
+      bindPopup(parc);
+    });
+    if(parcs.length){
+      const group = L.featureGroup(parcs.map(p=>p.polygon));
+      map.fitBounds(group.getBounds(), {padding:[60,60]});
+    }
+  } catch(e){ console.warn('Load failed', e); }
+}
+
+// ══════════════════════════════════════════════════════
+//  ZONES DE RÉFÉRENCE — chargement
+// ══════════════════════════════════════════════════════
+function loadZones(){
+  REFERENCE_ZONES.forEach(z=>{
+    const latlngs = z.points.map(p=>[p.lat, p.lng]);
+
+    const polygon = L.polygon(latlngs, {
+      color:       z.color,
+      weight:      3,
+      dashArray:   '8 5',
+      fillColor:   z.fillColor,
+      fillOpacity: 0.18,
+      interactive: true
+    }).addTo(map);
+
+    // Label centré via tooltip permanent (plus fiable que divIcon)
+    polygon.bindTooltip(z.name, {
+      permanent:  true,
+      direction:  'center',
+      className:  'zone-tooltip'
+    });
+
+    // Popup lecture seule
+    const area = calcArea(z.points.map(p=>L.latLng(p.lat,p.lng)));
+    polygon.bindPopup(`
+      <div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:${z.color};margin-bottom:6px">📍 ${z.name}</div>
+      <div style="font-size:12px;color:#666;line-height:1.6">
+        🌿 ${formatArea(area)}<br>
+        <span style="font-size:10px;color:#aaa;font-style:italic">Zone de référence — non modifiable</span>
+      </div>`
+    );
+    polygon.on('click', ()=>polygon.openPopup());
+  });
+}
+
+function flashSave(){
+  const el = document.getElementById('saveIndicator');
+  el.style.opacity = '1';
+  setTimeout(()=>{ el.style.opacity='0'; }, 1400);
+}
+
+// Intercepter toutes les modifications pour auto-sauvegarder
+const _closePolygon  = closePolygon;
+closePolygon = function(){ _closePolygon(); setTimeout(saveParcs,100); };
+const _finishEdit    = finishEdit;
+finishEdit = function(){ _finishEdit(); saveParcs(); };
+const _deleteParc    = deleteParc;
+deleteParc = function(id){ _deleteParc(id); saveParcs(); };
+const _renameParc    = renameParc;
+renameParc = function(id){ _renameParc(id); saveParcs(); };
+const _confirmAddBetween = confirmAddBetween;
+confirmAddBetween = function(){ _confirmAddBetween(); setTimeout(saveParcs,100); };
+
+// Charger les parcs sauvegardés au démarrage
+loadParcs();
+// Charger les zones de référence (toujours, indépendamment du localStorage)
+loadZones();
+// Toujours zoomer sur les zones de référence au démarrage
+if(REFERENCE_ZONES.length){
+  const allPts = REFERENCE_ZONES.flatMap(z=>z.points.map(p=>[p.lat,p.lng]));
+  map.fitBounds(L.latLngBounds(allPts), {padding:[80,80]});
+}
+
+// ══════════════════════════════════════════════════════
+//  SERVICE WORKER
+// ══════════════════════════════════════════════════════
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg=>{ console.log('SW registered, scope:', reg.scope); })
+      .catch(err=>{ console.warn('SW registration failed:', err); });
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  OFFLINE / ONLINE DETECTION
+// ══════════════════════════════════════════════════════
+function updateOnlineStatus(){
+  document.getElementById('offlineBadge').classList.toggle('on', !navigator.onLine);
+}
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ══════════════════════════════════════════════════════
+//  PWA INSTALL PROMPT
+// ══════════════════════════════════════════════════════
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show banner after 3s if not already installed
+  setTimeout(()=>{
+    if(deferredInstallPrompt) document.getElementById('installBanner').classList.add('on');
+  }, 3000);
+});
+
+document.getElementById('btnInstall').addEventListener('click', async ()=>{
+  if(!deferredInstallPrompt) return;
+  document.getElementById('installBanner').classList.remove('on');
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  console.log('Install outcome:', outcome);
+});
+
+document.getElementById('btnDismiss').addEventListener('click', ()=>{
+  document.getElementById('installBanner').classList.remove('on');
+  deferredInstallPrompt = null;
+});
+
+window.addEventListener('appinstalled', ()=>{
+  document.getElementById('installBanner').classList.remove('on');
+  deferredInstallPrompt = null;
+});
+</script>
+</body>
+</html>
