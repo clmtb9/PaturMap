@@ -643,8 +643,8 @@ input[type=text]:focus{border-color:var(--grass);}
 // ══════════════════════════════════════════════════════
 //  VERSION
 // ══════════════════════════════════════════════════════
-const APP_VERSION='v3';
-const BUILD_DATE=new Date('2026-03-07T23:39:14');
+let APP_VERSION='v3.1'; // fallback — overridden by sw.js via postMessage
+const BUILD_DATE=new Date('2026-03-07T23:50:41');
 
 // ══════════════════════════════════════════════════════
 //  STATE
@@ -2049,6 +2049,19 @@ loadZones();
 //  SERVICE WORKER
 // ══════════════════════════════════════════════════════
 if('serviceWorker' in navigator){
+  // Capture version broadcast from sw.js
+  navigator.serviceWorker.addEventListener('message', event => {
+    if(event.data && event.data.type==='VERSION'){
+      APP_VERSION = event.data.version;
+    }
+  });
+
+  function requestSwVersion(){
+    if(navigator.serviceWorker.controller){
+      navigator.serviceWorker.controller.postMessage({type:'GET_VERSION'});
+    }
+  }
+
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('./sw.js')
       .then(reg=>{
@@ -2068,6 +2081,9 @@ if('serviceWorker' in navigator){
             }
           });
         });
+
+        // Ask active SW for its version
+        requestSwVersion();
       })
       .catch(err=>{ console.warn('SW registration failed:', err); });
 
@@ -2075,6 +2091,8 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       console.log('Controller changed — showing update banner');
       document.getElementById('updateBanner').classList.add('on');
+      // Re-request version from the newly-activated SW
+      requestSwVersion();
     });
   });
 }

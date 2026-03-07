@@ -110,6 +110,13 @@ async function tileStrategy(request) {
   }
 }
 
+// ── MESSAGE — reply to version requests from the page ──
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.source.postMessage({ type: 'VERSION', version: VERSION });
+  }
+});
+
 function greyTile() {
   // SVG 256×256 gris neutre — remplace les tuiles manquantes
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">
