@@ -213,7 +213,19 @@ input[type=text]:focus{border-color:var(--grass);}
 .leaflet-popup-content-wrapper{border-radius:14px!important;font-family:'DM Sans',sans-serif!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important;}
 .leaflet-popup-content{margin:12px 14px!important;}
 
-/* ─── INSTALL BANNER ─── */
+/* ─── SATELLITE TOGGLE ─── */
+#btnSat{
+  position:fixed;top:calc(var(--hh) + 10px);left:10px;
+  z-index:600;background:white;border:none;border-radius:10px;
+  width:44px;height:44px;cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;font-size:9px;font-weight:700;color:#444;
+  font-family:'DM Sans',sans-serif;transition:transform .15s;
+}
+#btnSat:active{transform:scale(.9);}
+#btnSat.sat{background:var(--earth);color:var(--cream);}
+#btnSat .sat-icon{font-size:18px;line-height:1;}
 #installBanner{
   position:fixed;bottom:calc(90px + var(--sb));left:12px;right:12px;
   background:var(--earth);color:var(--cream);
@@ -315,6 +327,12 @@ input[type=text]:focus{border-color:var(--grass);}
 <!-- ADD-BETWEEN ACTION BUTTON -->
 <button id="btnAddBetween" onclick="confirmAddBetween()">➕ Insérer ici entre les voisins</button>
 
+<!-- SATELLITE TOGGLE -->
+<button id="btnSat" onclick="toggleSat()" title="Vue satellite">
+  <span class="sat-icon">🛰️</span>
+  <span id="satLabel">Satellite</span>
+</button>
+
 <!-- FABs -->
 <button id="fab"     onclick="openNewParcSheet()">＋</button>
 <button id="fabList" onclick="openListSheet()">🌿</button>
@@ -398,7 +416,30 @@ let searchTimer=null;
 //  MAP
 // ══════════════════════════════════════════════════════
 const map=L.map('map',{zoomControl:false}).setView([43.6,3.8],14);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
+
+const layerOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap', maxZoom:19
+});
+const layerSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+  attribution:'© Esri, Maxar, Earthstar Geographics',maxZoom:19
+});
+
+let satMode = false;
+layerOSM.addTo(map);
+
+function toggleSat(){
+  satMode = !satMode;
+  if(satMode){
+    map.removeLayer(layerOSM);
+    layerSat.addTo(map);
+  } else {
+    map.removeLayer(layerSat);
+    layerOSM.addTo(map);
+  }
+  document.getElementById('btnSat').classList.toggle('sat', satMode);
+  document.getElementById('satLabel').textContent = satMode ? 'Carte' : 'Satellite';
+}
+
 L.control.zoom({position:'topright'}).addTo(map);
 
 map.on('move',()=>{
