@@ -480,11 +480,11 @@ function startGpsWatch(btn){
   // récupérer la réponse (accordé / refusé) avant de lancer le watch continu.
   navigator.geolocation.getCurrentPosition(
     pos => {
-      // Permission accordée — afficher la position immédiatement
-      updateGpsDisplay(btn, pos);
-      // Puis démarrer le suivi continu
+      // Permission accordée — centrer la carte une seule fois
+      updateGpsDisplay(btn, pos, true);
+      // Puis démarrer le suivi continu sans recentrer
       gpsWatch=navigator.geolocation.watchPosition(
-        p => updateGpsDisplay(btn, p),
+        p => updateGpsDisplay(btn, p, false),
         err => { btn.classList.remove('locating'); },
         {enableHighAccuracy:true, maximumAge:0}
       );
@@ -502,7 +502,7 @@ function startGpsWatch(btn){
   );
 }
 
-function updateGpsDisplay(btn, pos){
+function updateGpsDisplay(btn, pos, centreMap=false){
   btn.classList.remove('locating');
   btn.title='Position active';
   const lat=pos.coords.latitude, lng=pos.coords.longitude, acc=pos.coords.accuracy;
@@ -518,7 +518,7 @@ function updateGpsDisplay(btn, pos){
   gpsMarker=L.marker(ll,{icon,zIndexOffset:1000}).addTo(map);
   gpsMarker.bindPopup(`<b>Ma position</b><br><span style="font-size:11px;color:#666;font-variant-numeric:tabular-nums">${lat.toFixed(6)}, ${lng.toFixed(6)}<br>Précision : ±${Math.round(acc)} m</span>`);
   gpsMarker.on('click',()=>gpsMarker.openPopup());
-  map.setView(ll,17);
+  if(centreMap) map.setView(ll,17);
 }
 
 // ══════════════════════════════════════════════════════
