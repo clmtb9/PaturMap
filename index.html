@@ -213,6 +213,16 @@ input[type=text]:focus{border-color:var(--grass);}
 .leaflet-popup-content-wrapper{border-radius:14px!important;font-family:'DM Sans',sans-serif!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important;}
 .leaflet-popup-content{margin:12px 14px!important;}
 
+/* ─── ZONE DE RÉFÉRENCE (non-éditable) ─── */
+.zone-label{
+  background:transparent;border:none;
+  font-family:'Playfair Display',serif;
+  font-size:13px;font-weight:700;
+  color:#7b3f00;text-shadow:0 1px 3px rgba(255,255,255,.9),0 0 8px rgba(255,255,255,.6);
+  white-space:nowrap;pointer-events:none;
+  display:flex;align-items:center;gap:4px;
+}
+
 /* ─── SATELLITE TOGGLE ─── */
 #btnSat{
   position:fixed;top:calc(var(--hh) + 10px);left:10px;
@@ -1075,20 +1085,80 @@ function loadParcs(){
     parcId = savedId || 0;
     data.forEach(d=>{
       const pts = d.points.map(p=>L.latLng(p.lat, p.lng));
+      const area = d.area || calcArea(pts);
       const polygon = L.polygon(pts.map(p=>[p.lat,p.lng]),{
         color:d.color, fillColor:d.color, fillOpacity:.22, weight:2.5
       }).addTo(map);
-      const parc = {id:d.id, name:d.name, color:d.color, polygon, points:pts, area:d.area, ptMarkers:[]};
+      const parc = {id:d.id, name:d.name, color:d.color, polygon, points:pts, area, ptMarkers:[]};
       parcs.push(parc);
       buildMarkers(parc, false);
       bindPopup(parc);
     });
     if(parcs.length){
-      // Zoom sur l'ensemble des parcs au démarrage
       const group = L.featureGroup(parcs.map(p=>p.polygon));
       map.fitBounds(group.getBounds(), {padding:[60,60]});
     }
   } catch(e){ console.warn('Load failed', e); }
+}
+
+// ══════════════════════════════════════════════════════
+//  ZONES DE RÉFÉRENCE — toujours présentes, non-éditables
+// ══════════════════════════════════════════════════════
+const REFERENCE_ZONES = [
+  {
+    name: 'La ferme de MR GROOT',
+    color: '#7b3f00',
+    fillColor: '#c8860a',
+    points: [
+      {lat:43.815921, lng:4.026762},
+      {lat:43.815471, lng:4.026283},
+      {lat:43.814955, lng:4.025878},
+      {lat:43.814688, lng:4.026510},
+      {lat:43.815144, lng:4.027673}
+    ]
+  }
+];
+
+function loadZones(){
+  REFERENCE_ZONES.forEach(z=>{
+    const pts = z.points.map(p=>[p.lat, p.lng]);
+    const area = calcArea(z.points.map(p=>L.latLng(p.lat,p.lng)));
+
+    // Polygone hachuré — deux couches : remplissage léger + bordure en tirets
+    const polygon = L.polygon(pts, {
+      color:       z.color,
+      weight:      2.5,
+      dashArray:   '8 5',
+      fillColor:   z.fillColor,
+      fillOpacity: 0.15,
+      interactive: true
+    }).addTo(map);
+
+    // Label permanent centré sur la zone
+    const center = polygon.getBounds().getCenter();
+    const labelIcon = L.divIcon({
+      className: '',
+      html: `<div class="zone-label">📍 ${z.name}</div>`,
+      iconAnchor: [0, 0]   // centrage horizontal géré par CSS
+    });
+    const labelMarker = L.marker(center, {
+      icon: labelIcon,
+      interactive: false,
+      zIndexOffset: -100
+    }).addTo(map);
+
+    // Popup lecture seule au clic
+    polygon.bindPopup(`
+      <div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:${z.color};margin-bottom:6px">
+        📍 ${z.name}
+      </div>
+      <div style="font-size:12px;color:#666;line-height:1.6">
+        🌿 ${formatArea(area)}<br>
+        <span style="font-size:10px;color:#aaa;font-style:italic">Zone de référence — non modifiable</span>
+      </div>
+    `);
+    polygon.on('click', ()=> polygon.openPopup());
+  });
 }
 
 function flashSave(){
@@ -1111,6 +1181,13 @@ confirmAddBetween = function(){ _confirmAddBetween(); setTimeout(saveParcs,100);
 
 // Charger les parcs sauvegardés au démarrage
 loadParcs();
+// Charger les zones de référence (toujours, indépendamment du localStorage)
+loadZones();
+// Si aucun parc utilisateur, centrer sur les zones de référence
+if(!parcs.length && REFERENCE_ZONES.length){
+  const pts = REFERENCE_ZONES.flatMap(z=>z.points.map(p=>[p.lat,p.lng]));
+  map.fitBounds(L.latLngBounds(pts), {padding:[60,60]});
+}
 
 // ══════════════════════════════════════════════════════
 //  SERVICE WORKER
