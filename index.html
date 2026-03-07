@@ -539,7 +539,7 @@ input[type=text]:focus{border-color:var(--grass);}
     <div style="background:white;border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:left;border:1.5px solid rgba(61,43,31,.1)">
       <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(61,43,31,.07)">
         <span style="font-size:12px;color:#888">Version</span>
-        <span style="font-size:12px;font-weight:700;color:var(--earth)">v3</span>
+        <span id="aboutVersion" style="font-size:12px;font-weight:700;color:var(--earth)">v3</span>
       </div>
       <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(61,43,31,.07)">
         <span style="font-size:12px;color:#888">Date</span>
@@ -640,6 +640,12 @@ input[type=text]:focus{border-color:var(--grass);}
 </div>
 
 <script>
+// ══════════════════════════════════════════════════════
+//  VERSION
+// ══════════════════════════════════════════════════════
+const APP_VERSION='v3';
+const BUILD_DATE=new Date('2026-03-07T23:39:14');
+
 // ══════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════
@@ -907,9 +913,9 @@ function confirmQuit(){
 }
 
 function showAbout(){
-  const now=new Date();
-  document.getElementById('aboutDate').textContent=now.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
-  document.getElementById('aboutTime').textContent=now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('aboutVersion').textContent=APP_VERSION;
+  document.getElementById('aboutDate').textContent=BUILD_DATE.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('aboutTime').textContent=BUILD_DATE.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('aboutModal').style.display='flex';
 }
 function closeAbout(){
