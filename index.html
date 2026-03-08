@@ -2121,10 +2121,10 @@ async function exportPDF(){
     const colors = {
       earth:[61,43,31], hay:[201,168,76], grass:[74,124,89],
       cream:[245,240,232], bark:[107,76,53], danger:[224,85,85],
-      blue:[26,61,107], light:[230,225,215]
+      blue:[26,61,107], light:[230,225,215], occupe:[180,120,30]
     };
 
-    // ── HELPERS ──────────────────────────────────────────
+    // ── BASE HELPERS ──────────────────────────────────────
     let y = 0;
     function checkPage(needed=20){
       if(y + needed > pageH - margin){ doc.addPage(); y = margin; }
@@ -2141,7 +2141,75 @@ async function exportPDF(){
       doc.line(margin, ry, W-margin, ry);
     }
 
-    // Stats globales (pré-calculées pour l'en-tête)
+    // ── ICON HELPERS ──────────────────────────────────────
+    // Filled circle dot
+    function iconDot(cx, cy, r, fill){
+      doc.setFillColor(...fill); doc.circle(cx, cy, r, 'F');
+    }
+    // Upward-pointing filled triangle (▲ entry)
+    function iconTriUp(x, cy, s, fill){
+      doc.setFillColor(...fill);
+      doc.triangle(x, cy+s, x+s, cy+s, x+s/2, cy, 'F');
+    }
+    // Downward-pointing filled triangle (▼ exit)
+    function iconTriDown(x, cy, s, fill){
+      doc.setFillColor(...fill);
+      doc.triangle(x, cy, x+s, cy, x+s/2, cy+s, 'F');
+    }
+    // Warning triangle with exclamation mark
+    function iconWarn(x, cy){
+      doc.setFillColor(255,200,40);
+      doc.triangle(x, cy+6, x+7, cy+6, x+3.5, cy, 'F');
+      doc.setFillColor(100,50,0);
+      doc.rect(x+3, cy+1.5, 1, 2.5, 'F');
+      doc.rect(x+3, cy+4.5, 1, 1, 'F');
+    }
+    // Clock icon (filled circle with white inner ring + hands)
+    function iconClock(cx, cy, r, fill){
+      doc.setFillColor(...fill); doc.circle(cx, cy, r, 'F');
+      doc.setFillColor(255,255,255); doc.circle(cx, cy, r*0.62, 'F');
+      doc.setFillColor(...fill); doc.circle(cx, cy, r*0.15, 'F');
+      doc.setDrawColor(...fill); doc.setLineWidth(0.5);
+      doc.line(cx, cy, cx+r*0.42, cy-r*0.28);
+      doc.line(cx, cy, cx, cy-r*0.52);
+    }
+    // Notepad icon (small rect with white rule lines)
+    function iconNote(x, y, fill){
+      const iw=4.5, ih=5.5;
+      doc.setFillColor(...fill); doc.rect(x, y, iw, ih, 'F');
+      doc.setFillColor(255,255,255);
+      doc.rect(x+0.8, y+1.1, iw-1.6, 0.65, 'F');
+      doc.rect(x+0.8, y+2.3, iw-1.6, 0.65, 'F');
+      doc.rect(x+0.8, y+3.5, iw-2.5, 0.65, 'F');
+    }
+    // Bar-chart icon (3 increasing vertical bars)
+    function iconBars(x, y, h, fill){
+      const bw=1.6;
+      doc.setFillColor(...fill);
+      doc.rect(x,       y+h*0.45, bw, h*0.55, 'F');
+      doc.rect(x+2.4,   y+h*0.2,  bw, h*0.8,  'F');
+      doc.rect(x+4.8,   y,        bw, h,       'F');
+    }
+    // GPS pin (filled circle with a stroke ring)
+    function iconPin(cx, cy, r, fill){
+      iconDot(cx, cy, r, fill);
+      doc.setDrawColor(...fill); doc.setLineWidth(0.5);
+      doc.circle(cx, cy, r+1.2, 'S');
+    }
+    // Colored status pill badge — returns pill width
+    function statusPill(x, ry, label, status){
+      const sc={dispo:colors.grass, occupe:colors.occupe, repos:colors.bark};
+      const c=sc[status]||colors.bark;
+      const tw=doc.getTextWidth(label);
+      const pw=tw+8, ph=5.5;
+      doc.setFillColor(...c);
+      doc.roundedRect(x, ry, pw, ph, ph/2, ph/2, 'F');
+      setFont(6.5,'bold',[255,255,255]);
+      doc.text(label, x+pw/2, ry+ph-1.5, {align:'center'});
+      return pw;
+    }
+
+    // ── PRE-COMPUTE STATS ─────────────────────────────────
     const now = new Date();
     const totalSurface = parcs.reduce((s,p)=>s+p.area,0);
     const totalBrebis  = parcs.reduce((s,p)=>s+(p.brebis||0),0);
@@ -2149,14 +2217,34 @@ async function exportPDF(){
     const parcsOccupe  = parcs.filter(p=>p.status==='occupe').length;
     const parcsRepos   = parcs.filter(p=>p.status==='repos').length;
 
-    // ── PAGE DE GARDE ────────────────────────────────────
+    // ── COVER PAGE ────────────────────────────────────────
     const hdrH = 68;
     fillRect(0, 0, W, hdrH, colors.earth);
+
+    // Decorative vertical accent stripes on the left side of the header
+    [2,5.5,9].forEach(ox=>{
+      doc.setFillColor(255,255,235);
+      doc.rect(ox, 0, 1.5, hdrH, 'F');
+    });
+
     fillRect(0, hdrH-5, W, 5, colors.hay);
-    // Bloc décoratif droite (3 stats empilées)
+
+    // Right stats block
     const rbW = 62;
     fillRect(W-rbW, 0, rbW, hdrH-5, colors.bark);
-    // Titre + sous-titre
+
+    // Decorative sheep silhouette in top-right of right block
+    const shpX = W-rbW/2-2, shpY = 5;
+    iconDot(shpX-2,   shpY+4,   3.2, [235,232,225]);  // body left
+    iconDot(shpX+2,   shpY+3.5, 3.5, [235,232,225]);  // body center
+    iconDot(shpX-0.5, shpY+1.5, 2.8, [235,232,225]);  // body top
+    iconDot(shpX+5.5, shpY+1.5, 2,   [190,170,150]);  // head
+    doc.setDrawColor(150,130,110); doc.setLineWidth(0.6);
+    doc.line(shpX-1, shpY+7.5, shpX-2,   shpY+12);   // leg 1
+    doc.line(shpX+1, shpY+7.5, shpX+0.5, shpY+12);   // leg 2
+    doc.line(shpX+3, shpY+7,   shpX+3.5, shpY+12);   // leg 3
+
+    // Title + subtitle
     setFont(30,'bold',[245,240,232]);
     doc.text('PâturMap', margin, 26);
     setFont(12,'normal',colors.hay);
@@ -2164,199 +2252,227 @@ async function exportPDF(){
     setFont(9,'normal',[180,165,145]);
     doc.text(`Généré le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`, margin, 50);
     setFont(7,'italic',[150,135,115]);
-    doc.text('PâturMap v3 — Clément B', margin, 60);
-    // Résumé dans le bloc droit — 3 mini-stats empilées
+    doc.text(`PâturMap ${APP_VERSION} — Clément B`, margin, 60);
+
+    // Right block — 3 mini-stats (below sheep)
     const rbCx = W - rbW/2;
-    setFont(16,'bold',[245,240,232]);
-    doc.text(String(parcs.length), rbCx, 17, {align:'center'});
-    setFont(7,'normal',colors.hay);
-    doc.text(`parc${parcs.length>1?'s':''}`, rbCx, 24, {align:'center'});
-    // séparateur
     doc.setDrawColor(...colors.hay); doc.setLineWidth(0.3);
-    doc.line(W-rbW+6, 27, W-6, 27);
-    setFont(11,'bold',[245,240,232]);
-    doc.text(formatArea(totalSurface), rbCx, 36, {align:'center'});
+    doc.line(W-rbW+6, 18, W-6, 18);                         // separator above first stat
+    setFont(16,'bold',[245,240,232]);
+    doc.text(String(parcs.length), rbCx, 28, {align:'center'});
     setFont(7,'normal',colors.hay);
-    doc.text('surface', rbCx, 43, {align:'center'});
-    doc.line(W-rbW+6, 46, W-6, 46);
+    doc.text(`parc${parcs.length>1?'s':''}`, rbCx, 35, {align:'center'});
+    doc.line(W-rbW+6, 38, W-6, 38);
     setFont(11,'bold',[245,240,232]);
-    doc.text(String(totalBrebis||0), rbCx, 55, {align:'center'});
+    doc.text(formatArea(totalSurface), rbCx, 47, {align:'center'});
     setFont(7,'normal',colors.hay);
-    doc.text('brebis', rbCx, 62, {align:'center'});
+    doc.text('surface', rbCx, 53, {align:'center'});
+    doc.line(W-rbW+6, 56, W-6, 56);
+    setFont(11,'bold',[245,240,232]);
+    doc.text(String(totalBrebis||0), rbCx, 62, {align:'center'});
 
-    // Stats globales section
+    // ── STAT BOXES ────────────────────────────────────────
     y = hdrH + 10;
-
-    const statBoxes=[
-      {label:'Parcs',       val:parcs.length,               color:colors.blue},
-      {label:'Surface tot.', val:formatArea(totalSurface),   color:colors.grass},
-      {label:'Brebis tot.',  val:totalBrebis||'—',           color:colors.hay},
-      {label:'Disponibles',  val:parcsDispo,                 color:[74,124,89]},
+    const statDefs=[
+      { label:'Parcs',         val:parcs.length,             color:colors.blue,
+        icon:(bx,by)=>{ fillRect(bx+1,by+1.5,3.5,3,colors.blue); fillRect(bx+5.5,by+2.5,3.5,2,[80,100,160]); } },
+      { label:'Surface tot.',  val:formatArea(totalSurface), color:colors.grass,
+        icon:(bx,by)=>{ doc.setDrawColor(255,255,255); doc.setLineWidth(0.9); doc.rect(bx+1.5,by+1,5,3.5,'S'); } },
+      { label:'Brebis tot.',   val:totalBrebis||'—',         color:colors.hay,
+        icon:(bx,by)=>{ iconDot(bx+4,by+2.8,2.5,[255,255,255]); } },
+      { label:'Disponibles',   val:parcsDispo,               color:[60,110,75],
+        icon:(bx,by)=>{ iconDot(bx+4,by+2.5,3,[255,255,255]); iconDot(bx+4,by+2.5,1.5,[60,110,75]); } },
     ];
     const bw=(contentW-9)/4;
-    statBoxes.forEach((sb,i)=>{
+    statDefs.forEach((sb,i)=>{
       const bx=margin+i*(bw+3);
-      fillRect(bx,y,bw,22,sb.color);
+      fillRect(bx,y,bw,26,sb.color);
+      sb.icon(bx+bw/2-4, y+3);
       setFont(14,'bold',[255,255,255]);
-      doc.text(String(sb.val), bx+bw/2, y+10, {align:'center'});
+      doc.text(String(sb.val), bx+bw/2, y+15, {align:'center'});
       setFont(7,'normal',[220,210,195]);
-      doc.text(sb.label, bx+bw/2, y+18, {align:'center'});
+      doc.text(sb.label, bx+bw/2, y+22, {align:'center'});
     });
-    y += 30;
+    y += 33;
 
-    // Résumé statuts
+    // Status summary with colored dot indicators
+    const dotR=2, dotY2=y+1.5;
+    iconDot(margin+2.5, dotY2, dotR, colors.grass);
     setFont(8,'normal',colors.bark);
-    doc.text(`Disponibles: ${parcsDispo}  |  Occupés: ${parcsOccupe}  |  En repos: ${parcsRepos}`, margin, y);
+    doc.text(`Disponibles: ${parcsDispo}`, margin+7, y+3);
+    iconDot(margin+54, dotY2, dotR, colors.occupe);
+    doc.text(`Occupés: ${parcsOccupe}`, margin+58, y+3);
+    iconDot(margin+100, dotY2, dotR, colors.bark);
+    doc.text(`En repos: ${parcsRepos}`, margin+104, y+3);
     y += 10;
     hLine(y); y += 8;
 
-    // ── PARCS (une section par parc) ─────────────────────
+    // ── PER-PARC SECTIONS ─────────────────────────────────
     for(let pi=0; pi<parcs.length; pi++){
       const p = parcs[pi];
-      checkPage(40);
+      checkPage(42);
 
-      // En-tête parc
       const hexToRgb = h=>{const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return[r,g,b];};
       const pc = hexToRgb(p.color||'#4a7c59');
-      fillRect(margin, y, contentW, 10, pc);
-      setFont(11,'bold',[255,255,255]);
-      doc.text(`${pi+1}. ${p.name}`, margin+4, y+7);
-      // Statut badge
-      const statLabel = {dispo:'Disponible',occupe:'Occupé',repos:'En repos'}[p.status||'dispo'];
-      setFont(7,'normal',[220,210,200]);
-      doc.text(statLabel, W-margin-4, y+7, {align:'right'});
-      y += 14;
 
-      // Infos en colonnes
+      // Parc header: colored background + status pill badge
+      fillRect(margin, y, contentW, 11, pc);
+      setFont(11,'bold',[255,255,255]);
+      doc.text(`${pi+1}. ${p.name}`, margin+4, y+7.5);
+      const statLabel = {dispo:'Disponible',occupe:'Occupé',repos:'En repos'}[p.status||'dispo'];
+      statusPill(W-margin-38, y+2.8, statLabel, p.status||'dispo');
+      y += 15;
+
+      // Info grid with accent top-bar per cell
       const sec = secteurs.find(s=>s.id===p.secteurId);
       const m2b = p.brebis && p.area ? Math.round(p.area/p.brebis) : null;
       const infoItems=[
-        ['Surface', formatArea(p.area)],
-        ['Brebis',  p.brebis||'—'],
-        ['Densité', m2b ? `${m2b} m²/b` : '—'],
-        ['Secteur', sec ? sec.name : '—'],
+        ['Surface', formatArea(p.area), colors.grass],
+        ['Brebis',  p.brebis||'—',     colors.blue],
+        ['Densité', m2b ? `${m2b} m²/b` : '—', colors.bark],
+        ['Secteur', sec ? sec.name : '—', colors.hay],
       ];
       const cw2 = contentW/4;
       infoItems.forEach((item,i)=>{
         const cx = margin + i*cw2;
-        fillRect(cx, y, cw2-1, 16, colors.cream);
+        fillRect(cx, y, cw2-1, 18, colors.cream);
+        fillRect(cx, y, cw2-1, 2, item[2]);                  // accent top bar
         setFont(11,'bold',colors.earth);
-        doc.text(String(item[1]), cx+cw2/2, y+8, {align:'center'});
+        doc.text(String(item[1]), cx+cw2/2, y+10, {align:'center'});
         setFont(7,'normal',colors.bark);
-        doc.text(item[0], cx+cw2/2, y+13, {align:'center'});
+        doc.text(item[0], cx+cw2/2, y+15.5, {align:'center'});
       });
-      y += 20;
+      y += 22;
 
-      // Alerte densité
+      // Density alert with warning icon
       if(densiteSeuilM2>0 && p.brebis>0 && m2b && m2b < densiteSeuilM2){
-        checkPage(8);
-        fillRect(margin, y, contentW, 7, [255,235,235]);
+        checkPage(12);
+        fillRect(margin, y, contentW, 9, [255,238,238]);
+        iconWarn(margin+3, y+1.5);
         setFont(8,'bold',colors.danger);
-        doc.text(`! Alerte densité : ${m2b} m²/brebis < seuil ${densiteSeuilM2} m²/brebis`, margin+3, y+5);
-        y += 10;
+        doc.text(`Alerte densité : ${m2b} m²/brebis < seuil ${densiteSeuilM2} m²/brebis`, margin+13, y+6);
+        y += 12;
       }
 
-      // Notes
+      // Notes section with notepad icon
       if(p.notes && p.notes.trim()){
-        const noteLines = doc.splitTextToSize(p.notes.trim(), contentW-12);
-        const noteH = noteLines.length * 5.5 + 8;
-        checkPage(noteH + 10);
-        fillRect(margin, y, contentW, 7, colors.bark);
-        setFont(8,'bold',[245,240,232]); doc.text('Notes', margin+4, y+5); y+=7;
+        const noteLines = doc.splitTextToSize(p.notes.trim(), contentW-14);
+        const noteH = noteLines.length * 5.5 + 9;
+        checkPage(noteH + 12);
+        fillRect(margin, y, contentW, 8, colors.bark);
+        iconNote(margin+3, y+1.5, colors.hay);
+        setFont(8,'bold',[245,240,232]);
+        doc.text('Notes', margin+10, y+5.5);
+        y += 8;
         fillRect(margin, y, contentW, noteH, [252,248,240]);
         fillRect(margin, y, 3, noteH, colors.hay);
         setFont(8,'normal',colors.earth);
         noteLines.forEach((l,li)=>{ doc.text(l, margin+8, y+5+li*5.5); });
-        y+=noteH+4;
+        y += noteH+5;
       }
 
-      // Historique statuts
+      // Status history with clock icon + colored dots
       if(p.statusHistory && p.statusHistory.length){
         const statLabPdf={dispo:'Disponible',occupe:'Occupé',repos:'En repos'};
         const statColPdf={dispo:[74,124,89],occupe:[201,168,76],repos:[107,76,53]};
         const histItems=p.statusHistory.slice(0,5);
-        const histRowH=6;
-        checkPage(histRowH*(histItems.length+1)+4);
-        // Section header
-        fillRect(margin, y, contentW, histRowH, colors.bark);
-        setFont(7,'bold',[245,240,232]); doc.text('Historique des statuts', margin+4, y+4.5); y+=histRowH;
+        const histRowH=7;
+        checkPage(histRowH*(histItems.length+1)+6);
+        fillRect(margin, y, contentW, 8, colors.bark);
+        iconClock(margin+5.5, y+4, 2.8, colors.hay);
+        setFont(7,'bold',[245,240,232]);
+        doc.text('Historique des statuts', margin+11, y+5.5);
+        y += 8;
         histItems.forEach((h,hi)=>{
           const bg = hi%2===0 ? colors.cream : [255,255,255];
           fillRect(margin, y, contentW, histRowH, bg);
           const sc = statColPdf[h.status]||colors.bark;
           fillRect(margin, y, 3, histRowH, sc);
+          iconDot(margin+7, y+histRowH/2, 1.8, sc);
           setFont(7,'bold', sc);
-          doc.text(statLabPdf[h.status]||h.status, margin+6, y+4.5);
+          doc.text(statLabPdf[h.status]||h.status, margin+11, y+histRowH-2);
           setFont(7,'normal',[140,130,120]);
-          doc.text(h.date||h.isoDate||'?', W-margin-4, y+4.5, {align:'right'});
-          y+=histRowH;
+          doc.text(h.date||h.isoDate||'?', W-margin-4, y+histRowH-2, {align:'right'});
+          y += histRowH;
         });
-        y+=4;
+        y += 5;
       }
 
-      // Graphique rotations (si existe)
+      // Rotation history with bar-chart icon + triangle entry/exit arrows
       if(p.rotations && p.rotations.length > 0){
-        checkPage(20);
-        setFont(8,'bold',colors.bark); doc.text('Historique rotations', margin, y+4); y+=8;
+        checkPage(22);
+        fillRect(margin, y, contentW, 8, colors.bark);
+        iconBars(margin+2.5, y+1.5, 5, colors.hay);
+        setFont(8,'bold',[245,240,232]);
+        doc.text('Historique rotations', margin+11, y+5.5);
+        y += 10;
 
-        // ── Tableau récap entrées/sorties ──────────────────
         const sorted=[...p.rotations].sort((a,b)=>{
           const d=(a.isoDate||'').localeCompare(b.isoDate||'');
           if(d!==0) return d;
-          // Same date: restore chronological insertion order.
-          // rotations are stored newest-first (unshift), so older entries
-          // have a higher index — put them first for correct cumul.
+          // rotations stored newest-first (unshift) — restore chronological order
           return p.rotations.indexOf(b)-p.rotations.indexOf(a);
         });
-        const colW=[28,22,22,22,22];
-        const colX=[margin, margin+28, margin+50, margin+72, margin+94];
-        const rowH=6;
+        const colW=[28,24,22,22,22];
+        const colX=[margin, margin+28, margin+52, margin+74, margin+96];
+        const rowH=7;
 
-        // En-tête tableau
+        // Table header
         fillRect(margin, y, contentW, rowH+1, colors.earth);
         const headers=['Date','Type','Brebis','Cumul','m²/b'];
         setFont(7,'bold',[245,240,232]);
         headers.forEach((h,i)=>doc.text(h, colX[i]+colW[i]/2, y+5, {align:'center'}));
         y += rowH+1;
 
-        // Lignes
         let cumul=0;
         sorted.forEach((r,i)=>{
           checkPage(rowH+2);
           const n=parseInt(r.brebis)||0;
           if(r.type==='entree') cumul+=n; else cumul=Math.max(0,cumul-n);
-          const m2b = cumul>0&&p.area ? Math.round(p.area/cumul) : '—';
+          const m2bR = cumul>0&&p.area ? Math.round(p.area/cumul) : '—';
           const isEntree = r.type==='entree';
           const bg = i%2===0 ? colors.cream : [255,255,255];
           fillRect(margin, y, contentW, rowH, bg);
-          // Indicateur couleur type
           fillRect(margin, y, 3, rowH, isEntree ? [74,124,89] : [224,130,50]);
+
           setFont(7,'normal',colors.earth);
           const dateStr = r.isoDate ? new Date(r.isoDate+'T12:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
-          doc.text(dateStr, colX[0]+colW[0]/2, y+4.5, {align:'center'});
-          setFont(7,'bold', isEntree ? colors.grass : [180,90,20]);
-          doc.text(isEntree?'Entrée':'Sortie', colX[1]+colW[1]/2, y+4.5, {align:'center'});
+          doc.text(dateStr, colX[0]+colW[0]/2, y+rowH-2, {align:'center'});
+
+          // Triangle icon + type label
+          const triS=3, triY=y+rowH/2-triS/2;
+          if(isEntree){
+            iconTriUp(colX[1]+3, triY, triS, [74,124,89]);
+            setFont(7,'bold',colors.grass);
+            doc.text('Entrée', colX[1]+8, y+rowH-2);
+          } else {
+            iconTriDown(colX[1]+3, triY, triS, [224,130,50]);
+            setFont(7,'bold',[180,90,20]);
+            doc.text('Sortie', colX[1]+8, y+rowH-2);
+          }
+
           setFont(7,'normal',colors.earth);
-          doc.text(String(n), colX[2]+colW[2]/2, y+4.5, {align:'center'});
+          doc.text(String(n), colX[2]+colW[2]/2, y+rowH-2, {align:'center'});
           setFont(7,'bold',colors.earth);
-          doc.text(String(cumul), colX[3]+colW[3]/2, y+4.5, {align:'center'});
+          doc.text(String(cumul), colX[3]+colW[3]/2, y+rowH-2, {align:'center'});
           setFont(7,'normal',[120,110,100]);
-          doc.text(String(m2b), colX[4]+colW[4]/2, y+4.5, {align:'center'});
-          // Ligne séparatrice légère
+          doc.text(String(m2bR), colX[4]+colW[4]/2, y+rowH-2, {align:'center'});
           doc.setDrawColor(...colors.light); doc.setLineWidth(0.2);
           doc.line(margin, y+rowH, W-margin, y+rowH);
           y += rowH;
         });
-        // Total final
+
+        // Total row with dot indicator
         fillRect(margin, y, contentW, rowH+1, colors.grass);
+        iconDot(margin+4, y+(rowH+1)/2, 2, [255,255,255]);
         setFont(7,'bold',[255,255,255]);
         doc.text('TOTAL FINAL', colX[0]+colW[0]/2, y+5, {align:'center'});
         doc.text(String(cumul), colX[3]+colW[3]/2, y+5, {align:'center'});
         const finalM2b = cumul>0&&p.area ? Math.round(p.area/cumul) : '—';
         doc.text(String(finalM2b), colX[4]+colW[4]/2, y+5, {align:'center'});
-        y += rowH+5;
+        y += rowH+6;
 
-        // ── Graphique en escalier ──────────────────────────
+        // Staircase chart
         checkPage(60);
         setFont(8,'bold',colors.bark); doc.text('Évolution du troupeau', margin, y+4); y+=7;
 
@@ -2366,36 +2482,29 @@ async function exportPDF(){
         document.body.appendChild(chartCanvas);
         const ctx = chartCanvas.getContext('2d');
 
-        // Données : un point avant et après chaque mouvement pour un vrai escalier
         const chartLabels=[], chartData=[];
         let cnt=0;
         if(sorted.length){
-          // Point initial à zéro
           chartLabels.push(sorted[0].isoDate||'');
           chartData.push(0);
         }
         sorted.forEach(r=>{
           const n=parseInt(r.brebis)||0;
-          // Point juste avant (même date, valeur avant)
           chartLabels.push(r.isoDate||'');
           chartData.push(cnt);
-          // Point après le mouvement
           if(r.type==='entree') cnt+=n; else cnt=Math.max(0,cnt-n);
           chartLabels.push(r.isoDate||'');
           chartData.push(cnt);
         });
 
-        // Formater les labels date pour l'affichage
         const fmtLabel = iso => {
           if(!iso) return '';
           try { return new Date(iso+'T12:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); }
           catch { return iso; }
         };
         const displayLabels = chartLabels.map(fmtLabel);
-        // Dédupliquer les labels consécutifs identiques pour lisibilité
         const cleanLabels = displayLabels.map((l,i)=> i>0 && displayLabels[i-1]===l ? '' : l);
 
-        // Couleur de fond dégradée
         const gradient = ctx.createLinearGradient(0,0,0,300);
         gradient.addColorStop(0,'rgba(74,124,89,0.35)');
         gradient.addColorStop(1,'rgba(74,124,89,0.02)');
@@ -2410,10 +2519,7 @@ async function exportPDF(){
               borderColor:'#4a7c59',
               backgroundColor: gradient,
               borderWidth:2.5,
-              pointRadius: chartData.map((_,i)=>{
-                // Afficher un point aux transitions "après mouvement" (indices pairs > 0)
-                return (i%2===0 && i>0) ? 5 : 0;
-              }),
+              pointRadius: chartData.map((_,i)=>{ return (i%2===0 && i>0) ? 5 : 0; }),
               pointBackgroundColor:'#4a7c59',
               pointBorderColor:'white',
               pointBorderWidth:1.5,
@@ -2424,21 +2530,16 @@ async function exportPDF(){
           options:{
             responsive:false,
             animation:false,
-            plugins:{
-              legend:{display:false},
-              tooltip:{enabled:false},
-            },
+            plugins:{ legend:{display:false}, tooltip:{enabled:false} },
             scales:{
               x:{
                 ticks:{font:{size:10},color:'#6b4c35',maxRotation:45,autoSkip:true,maxTicksLimit:20},
-                grid:{color:'rgba(0,0,0,0.05)'},
-                border:{color:'rgba(0,0,0,0.1)'}
+                grid:{color:'rgba(0,0,0,0.05)'}, border:{color:'rgba(0,0,0,0.1)'}
               },
               y:{
                 beginAtZero:true,
                 ticks:{font:{size:10},color:'#6b4c35',stepSize:Math.ceil(Math.max(...chartData)/5)||1},
-                grid:{color:'rgba(0,0,0,0.07)'},
-                border:{color:'rgba(0,0,0,0.1)'},
+                grid:{color:'rgba(0,0,0,0.07)'}, border:{color:'rgba(0,0,0,0.1)'},
                 title:{display:true,text:'Brebis',font:{size:10},color:'#6b4c35'}
               }
             },
@@ -2452,8 +2553,7 @@ async function exportPDF(){
               ds.data.forEach((value,i)=>{
                 if(i%2===0 && i>0 && meta.data[i]){
                   const pt=meta.data[i];
-                  c2.fillStyle='#2d6a4f';
-                  c2.font='bold 11px sans-serif';
+                  c2.fillStyle='#2d6a4f'; c2.font='bold 11px sans-serif';
                   c2.textAlign='center';
                   c2.fillText(String(value), pt.x, pt.y-10);
                 }
@@ -2472,28 +2572,35 @@ async function exportPDF(){
         doc.addImage(imgData,'PNG',margin,y,contentW,56);
         y+=60;
       } else {
-        checkPage(6);
-        setFont(8,'normal',[170,160,145]);
-        doc.text('Aucun mouvement enregistré', margin, y); y+=8;
+        checkPage(8);
+        iconDot(margin+2.5, y+2, 1.8, [200,190,180]);
+        setFont(8,'italic',[170,160,145]);
+        doc.text('Aucun mouvement enregistré', margin+7, y+3.5);
+        y+=8;
       }
 
-      // Points GPS (condensé)
-      checkPage(8);
+      // GPS coordinates with pin icon
+      checkPage(9);
+      iconPin(margin+2, y+2, 1.2, [150,140,130]);
       setFont(7,'normal',[150,140,130]);
-      doc.text(`${p.points.length} points GPS · ${p.points.map(pt=>`${pt.lat.toFixed(5)},${pt.lng.toFixed(5)}`).join(' | ')}`, margin, y, {maxWidth:contentW});
-      y+=8;
+      doc.text(`${p.points.length} points GPS · ${p.points.map(pt=>`${pt.lat.toFixed(5)},${pt.lng.toFixed(5)}`).join(' | ')}`, margin+7, y+3.5, {maxWidth:contentW-7});
+      y+=9;
 
-      // Séparateur
       if(pi < parcs.length-1){ checkPage(6); hLine(y); y+=8; }
     }
 
-    // ── PIED DE PAGE sur chaque page ────────────────────
+    // ── FOOTER on every page ──────────────────────────────
     const totalPages = doc.getNumberOfPages();
     for(let pg=1;pg<=totalPages;pg++){
       doc.setPage(pg);
+      // Thin hay accent line above footer
+      doc.setDrawColor(...colors.hay); doc.setLineWidth(0.4);
+      doc.line(0, pageH-11, W, pageH-11);
       fillRect(0, pageH-10, W, 10, colors.earth);
       setFont(7,'normal',[160,150,140]);
-      doc.text('PâturMap', margin, pageH-4);
+      doc.text(`PâturMap ${APP_VERSION}`, margin, pageH-4);
+      setFont(7,'normal',[120,110,100]);
+      doc.text(now.toLocaleDateString('fr-FR'), W/2, pageH-4, {align:'center'});
       doc.text(`${pg} / ${totalPages}`, W-margin, pageH-4, {align:'right'});
     }
 
