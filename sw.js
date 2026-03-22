@@ -4,7 +4,7 @@
 //  Network-first pour les tuiles de carte (avec fallback cache)
 // ══════════════════════════════════════════════════════
 
-const VERSION = 'v2';
+const VERSION = 'v3.1';
 const CACHE_STATIC = `paturmap-static-${VERSION}`;
 const CACHE_TILES  = `paturmap-tiles-${VERSION}`;
 
@@ -109,6 +109,13 @@ async function tileStrategy(request) {
     return greyTile();
   }
 }
+
+// ── MESSAGE — reply to version requests from the page ──
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.source.postMessage({ type: 'VERSION', version: VERSION });
+  }
+});
 
 function greyTile() {
   // SVG 256×256 gris neutre — remplace les tuiles manquantes
